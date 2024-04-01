@@ -1,6 +1,7 @@
-#[cfg(feature = "ssr")]
-pub mod tmdb {
-    use std::{fs, sync::Arc};
+use cfg_if::cfg_if;
+cfg_if! {
+    if #[cfg(feature = "ssr")] {
+        use std::{fs, sync::Arc};
 
     #[allow(unused_imports)]
     use reqwest::{
@@ -554,6 +555,7 @@ pub mod tmdb {
 
             assert!(response.results.iter().any(|m| m == &movie));
         }
+    }
     }
 }
 
