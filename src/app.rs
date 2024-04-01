@@ -1,3 +1,4 @@
+#![allow(unused_imports, dead_code, unused_variables)]
 use leptos::{svg::view, *};
 use leptos_meta::*;
 use leptos_router::*;
@@ -11,9 +12,6 @@ pub fn App() -> impl IntoView {
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
     //let (watch_providers, _) = create_signal(get_watch_providers());
-    let (decades, _) = create_signal(get_decades());
-    let (movies, _) = create_signal(get_movies());
-
     view! {
         <Stylesheet id="leptos" href="/pkg/moodie-server.css"/>
         <Stylesheet

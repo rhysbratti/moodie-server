@@ -1,8 +1,8 @@
+#![allow(unused_imports, dead_code, unused_variables)]
 pub mod app;
-use std::{thread, time::Duration};
-
 use leptos::*;
 use serde::{Deserialize, Serialize};
+use std::{thread, time::Duration};
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
