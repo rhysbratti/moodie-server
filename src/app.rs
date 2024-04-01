@@ -19,8 +19,7 @@ pub fn App() -> impl IntoView {
             href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         />
 
-        // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Moodie"/>
 
         // content for this welcome page
         <body data-bs-theme="dark">
@@ -28,8 +27,10 @@ pub fn App() -> impl IntoView {
                 <nav></nav>
                 <main>
                     <Routes>
-                        <Route path="/" view=ProviderPage/>
-
+                        <Route path="/" view=ProviderPage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/runtime" view=RuntimePage/>
+                        <Route path="/movies" view=MoviePage/>
                         <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                     </Routes>
                 </main>
@@ -39,7 +40,48 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-pub fn Page(children: Children) -> impl IntoView {
+pub fn GridPage<T: CardData + Clone + 'static>(resource: Resource<(), Vec<T>>) -> impl IntoView {
+    let loading = resource.loading();
+    view! {
+        {move || {
+            if loading() {
+                view! {
+                    <Grid>
+                        <LoadingCards/>
+                    </Grid>
+                }
+                    .into_view()
+            } else {
+                match resource.get() {
+                    None => {
+                        {
+                            view! {
+                                <Grid>
+                                    <LoadingCards/>
+                                </Grid>
+                            }
+                        }
+                            .into_view()
+                    }
+                    Some(data) => {
+                        {
+                            view! {
+                                <Grid>
+                                    <Card card_data=data/>
+                                </Grid>
+                            }
+                        }
+                            .into_view()
+                    }
+                }
+            }
+        }}
+    }
+}
+
+#[component]
+pub fn DecadePage() -> impl IntoView {
+    let decades = create_resource(|| (), |_| async move { get_decades().await });
     view! {
         <div
             style:position="absolute"
@@ -47,7 +89,7 @@ pub fn Page(children: Children) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            {children()}
+            <GridPage resource=decades/>
         </div>
     }
 }
@@ -55,7 +97,6 @@ pub fn Page(children: Children) -> impl IntoView {
 #[component]
 pub fn ProviderPage() -> impl IntoView {
     let watch_providers = create_resource(|| (), |_| async move { get_watch_providers().await });
-    let loading = watch_providers.loading();
     view! {
         <div
             style:position="absolute"
@@ -63,40 +104,22 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            {move || {
-                if loading() {
-                    view! {
-                        <Grid>
-                            <LoadingCards/>
-                        </Grid>
-                    }
-                        .into_view()
-                } else {
-                    match watch_providers.get() {
-                        None => {
-                            {
-                                view! {
-                                    <Grid>
-                                        <LoadingCards/>
-                                    </Grid>
-                                }
-                            }
-                                .into_view()
-                        }
-                        Some(data) => {
-                            {
-                                view! {
-                                    <Grid>
-                                        <Card card_data=data/>
-                                    </Grid>
-                                }
-                            }
-                                .into_view()
-                        }
-                    }
-                }
-            }}
+            <GridPage resource=watch_providers/>
+        </div>
+    }
+}
 
+#[component]
+pub fn MoviePage() -> impl IntoView {
+    let recommendations = create_resource(|| (), |_| async move { get_movies().await });
+    view! {
+        <div
+            style:position="absolute"
+            style:left="30%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+            <GridPage resource=recommendations/>
         </div>
     }
 }
@@ -122,43 +145,50 @@ fn NotFound() -> impl IntoView {
 }
 
 #[component]
-fn Runtime() -> impl IntoView {
+fn RuntimePage() -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
     view! {
-        <div style:display="flex" style:alignItems="center" style:justifyContent="center">
-            <div style:width="600px">
-                <input
-                    type="range"
-                    min=1
-                    max=4
-                    step=1
-                    bind:value=runtime
-                    style:width="90%"
-                    on:input=move |e| {
-                        match event_target_value(&e).parse() {
-                            Ok(target_value) => set_runtime(target_value),
-                            Err(err) => error!("{}", err),
+        <div
+            style:position="absolute"
+            style:left="40%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+            <div style:display="flex" style:alignItems="center" style:justifyContent="center">
+                <div style:width="600px">
+                    <input
+                        type="range"
+                        min=1
+                        max=4
+                        step=1
+                        bind:value=runtime
+                        style:width="90%"
+                        on:input=move |e| {
+                            match event_target_value(&e).parse() {
+                                Ok(target_value) => set_runtime(target_value),
+                                Err(err) => error!("{}", err),
+                            }
                         }
-                    }
-                />
+                    />
 
-                <div
-                    style:display="flex"
-                    style:justifyContent="space-between"
-                    style:position="absolute"
-                    style:bottom="calc(100% + 10px)"
-                    style:left="0"
-                    style:right="0"
-                    style:marginTop="10px"
-                >
-                    <span style:width="25%">Quick</span>
-                    <span style:width="25%">Average</span>
-                    <span style:width="25%">Movie Night</span>
-                    <span style:width="25%">Martin Scorsese</span>
+                    <div
+                        style:display="flex"
+                        style:justifyContent="space-between"
+                        style:position="absolute"
+                        style:bottom="calc(100% + 10px)"
+                        style:left="0"
+                        style:right="0"
+                        style:marginTop="10px"
+                    >
+                        <span style:width="25%">Quick</span>
+                        <span style:width="25%">Average</span>
+                        <span style:width="25%">Movie Night</span>
+                        <span style:width="25%">Martin Scorsese</span>
+                    </div>
                 </div>
             </div>
+            <h1>{runtime}</h1>
         </div>
-        <h1>{runtime}</h1>
     }
 }
 

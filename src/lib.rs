@@ -21,7 +21,7 @@ pub struct WatchProvider {
     pub provider_id: i32,
     pub logo_path: String,
 }
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Decade {
     Classic,
     Fifties,
@@ -42,7 +42,7 @@ pub enum Runtime {
     MartinScorsese,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Movie {
     pub id: i64,
     pub overview: String,
@@ -55,7 +55,7 @@ pub struct Movie {
 }
 
 //<span class="badge rounded-pill text-bg-secondary">{watch_provider.provider_name}</span>
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Serialize, Deserialize)]
 pub struct MovieRecommendation {
     pub movie: Movie,
     pub providers: Vec<WatchProvider>,
