@@ -3,7 +3,6 @@ pub mod app;
 pub use app::*;
 #[cfg(feature = "ssr")]
 mod redis_helper;
-mod server_functions;
 #[cfg(feature = "ssr")]
 mod tmdb;
 #[cfg(feature = "ssr")]

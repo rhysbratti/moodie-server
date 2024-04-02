@@ -49,16 +49,21 @@ pub fn App() -> impl IntoView {
             } else {
                 match session_resource.get() {
                     Some(session_id) => {
+                        let session_id = session_id.expect("Whoopsie");
+                        let provider_session = session_id.clone();
+                        let decade_session = session_id.clone();
+                        let runtime_session = session_id.clone();
+                        let movie_session = session_id.clone();
+
                         view! {
-                                <h1>{session_id}</h1>
                                 <Router>
                                     <nav></nav>
                                     <main>
                                         <Routes>
-                                            <Route path="/" view=ProviderPage ssr=SsrMode::OutOfOrder/>
-                                            <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
-                                            <Route path="/runtime" view=RuntimePage/>
-                                            <Route path="/movies" view=MoviePage ssr=SsrMode::OutOfOrder/>
+                                            <Route path="/" view={move|| view! {<ProviderPage session_id=provider_session.clone()/>}} ssr=SsrMode::OutOfOrder/>
+                                            <Route path="/decades" view={move || view! {<DecadePage session_id=decade_session.clone()/>}}  ssr=SsrMode::OutOfOrder/>
+                                            <Route path="/runtime" view={move || view! {<RuntimePage session_id=runtime_session.clone()/>}} />
+                                            <Route path="/movies" view={move || view! {<MoviePage session_id=movie_session.clone()/>}}  ssr=SsrMode::OutOfOrder/>
                                             <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                                         </Routes>
                                     </main>
@@ -119,8 +124,8 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 }
 
 #[component]
-pub fn DecadePage() -> impl IntoView {
-    let decades = create_resource(|| (), |_| async move { get_decades().await });
+pub fn DecadePage(session_id: String) -> impl IntoView {
+    let decades = create_resource(|| (), |_| async move { fetch_decades().await });
     //<GridPage resource=decades/>
     view! {
         <div
@@ -129,13 +134,13 @@ pub fn DecadePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-
+            <GridPage resource=decades/>
         </div>
     }
 }
 
 #[component]
-pub fn ProviderPage() -> impl IntoView {
+pub fn ProviderPage(session_id: String) -> impl IntoView {
     let watch_providers = create_resource(
         || (),
         |_| async move { fetch_simple_watch_providers().await },
@@ -153,7 +158,7 @@ pub fn ProviderPage() -> impl IntoView {
 }
 
 #[component]
-pub fn MoviePage() -> impl IntoView {
+pub fn MoviePage(session_id: String) -> impl IntoView {
     let recommendations = create_resource(|| (), |_| async move { get_movies().await });
     //<GridPage resource=recommendations/>
     view! {
@@ -189,7 +194,7 @@ fn NotFound() -> impl IntoView {
 }
 
 #[component]
-fn RuntimePage() -> impl IntoView {
+fn RuntimePage(session_id: String) -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
     view! {
         <div
@@ -371,17 +376,17 @@ pub async fn fetch_runtimes() -> Result<Vec<RuntimeInfo>, ServerFnError> {
 }
 
 #[server(FetchDecades, "/api", "GetJson")]
-pub async fn fetch_decades() -> Result<Vec<DecadeInfo>, ServerFnError> {
+pub async fn fetch_decades() -> Result<Vec<Decade>, ServerFnError> {
     let decades = vec![
-        Decade::Classic.info(),
-        Decade::Fifties.info(),
-        Decade::Sixties.info(),
-        Decade::Seventies.info(),
-        Decade::Eighties.info(),
-        Decade::Nineties.info(),
-        Decade::TwoThousands.info(),
-        Decade::TwentyTens.info(),
-        Decade::Recent.info(),
+        Decade::Classic,
+        Decade::Fifties,
+        Decade::Sixties,
+        Decade::Seventies,
+        Decade::Eighties,
+        Decade::Nineties,
+        Decade::TwoThousands,
+        Decade::TwentyTens,
+        Decade::Recent,
     ];
 
     Ok(decades)
