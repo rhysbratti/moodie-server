@@ -1,7 +1,12 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 pub mod app;
+pub use app::*;
+#[cfg(feature = "ssr")]
 mod redis_helper;
+mod server_functions;
+#[cfg(feature = "ssr")]
 mod tmdb;
+#[cfg(feature = "ssr")]
 mod tmdb_helper;
 use leptos::*;
 use serde::{Deserialize, Serialize};
@@ -56,7 +61,7 @@ pub enum Runtime {
     MartinScorsese,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RuntimeResponse {
     pub runtime: Runtime,
 }
@@ -119,7 +124,7 @@ pub struct DecadeInfo {
     name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DecadeResponse {
     pub decade: String,
 }
@@ -511,7 +516,6 @@ pub async fn get_movies() -> Vec<MovieRecommendation> {
 }
 
 pub async fn get_watch_providers() -> Vec<WatchProvider> {
-    thread::sleep(Duration::from_secs(1));
     vec![
         WatchProvider {
             provider_id: 8,

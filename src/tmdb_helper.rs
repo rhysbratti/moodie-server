@@ -1,21 +1,19 @@
 #![allow(dead_code, unused_variables)]
 use crate::*;
-use std::{collections::HashMap, sync::Arc};
+use cfg_if::cfg_if;
 
 const NUM_RESULTS: u8 = 5;
 
-#[cfg(feature = "ssr")]
-mod tmdb_helper {
+cfg_if! {
+    if #[cfg(feature = "ssr")] {
     use std::{collections::HashMap, sync::Arc};
 
     use httpmock::{prelude::*, Mock};
     use lazy_static::lazy_static;
 
-    use crate::tmdb::tmdb::{AsyncRecommendation, Tmdb};
+    use crate::tmdb::{AsyncRecommendation, Tmdb};
     use crate::*;
 
-    use self::redis_helper::redis_helper;
-    use self::tmdb::tmdb;
     pub async fn get_recommendations_for_session(
         tmdb: Arc<Tmdb>,
         session_id: String,
@@ -506,6 +504,7 @@ mod tmdb_helper {
             assert!(!providers.is_empty());
         }
     }
+}
 }
 
 /* ======================================================================================================================== */

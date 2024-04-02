@@ -1,5 +1,7 @@
-#[cfg(feature = "ssr")]
-pub mod redis_helper {
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(feature = "ssr")] {
     use crate::*;
     use lazy_static::lazy_static;
     use redis::{Commands, Connection};
@@ -157,4 +159,5 @@ pub mod redis_helper {
             assert_eq!(empty_criteria, empty_criteria_string);
         }
     }
+}
 }
