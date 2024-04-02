@@ -2,7 +2,8 @@
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
-    use actix_web::*;
+    use actix_session::{storage::CookieSessionStore, *};
+    use actix_web::{cookie::Key, *};
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
     use moodie_server::app::*;

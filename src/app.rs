@@ -15,11 +15,7 @@ use crate::{get_decades, get_movies, get_watch_providers, AddOrRemove, CardData,
 pub fn App() -> impl IntoView {
     let session_resource = create_resource(|| (), |_| async move { start_session().await });
 
-    let session_id = session_resource
-        .get()
-        .expect("No session")
-        .expect("Session");
-    println!("{}", session_id);
+    let loading = session_resource.loading();
 
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
@@ -33,26 +29,57 @@ pub fn App() -> impl IntoView {
 
         <Title text="Moodie"/>
 
+        // <div class="loader"></div>
+
         // content for this welcome page
         <body data-bs-theme="dark">
-            <Router>
-                <nav></nav>
-                <main>
-                    <Routes>
-                        <Route path="/" view=ProviderPage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/runtime" view=RuntimePage/>
-                        <Route path="/movies" view=MoviePage/>
-                        <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
-                    </Routes>
-                </main>
-            </Router>
+        {move || {
+            if loading() {
+                view! {
+                    <div
+                        style:position="absolute"
+                        style:left="30%"
+                        style:top="30%"
+                        style:transform="translate(-20%, -25%)"
+                    >
+                        <div class="loader"></div>
+                    </div>
+                }
+                    .into_view()
+            } else {
+                match session_resource.get() {
+                    Some(session_id) => {
+                        view! {
+                                <h1>{session_id}</h1>
+                                <Router>
+                                    <nav></nav>
+                                    <main>
+                                        <Routes>
+                                            <Route path="/" view=ProviderPage ssr=SsrMode::OutOfOrder/>
+                                            <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
+                                            <Route path="/runtime" view=RuntimePage/>
+                                            <Route path="/movies" view=MoviePage ssr=SsrMode::OutOfOrder/>
+                                            <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
+                                        </Routes>
+                                    </main>
+                                </Router>
+                        }
+                            .into_view()
+                    },
+                    None => {
+                        view! {}.into_view()
+                    }
+                }
+            }
+        }}
         </body>
     }
 }
 
 #[component]
-pub fn GridPage<T: CardData + Clone + 'static>(resource: Resource<(), Vec<T>>) -> impl IntoView {
+pub fn GridPage<T: CardData + Clone + 'static>(
+    resource: Resource<(), Result<Vec<T>, ServerFnError>>,
+) -> impl IntoView {
     let loading = resource.loading();
     view! {
         {move || {
@@ -79,7 +106,7 @@ pub fn GridPage<T: CardData + Clone + 'static>(resource: Resource<(), Vec<T>>) -
                         {
                             view! {
                                 <Grid>
-                                    <Card card_data=data/>
+                                    <Card card_data=data.expect("whoopsie")/>
                                 </Grid>
                             }
                         }
@@ -94,6 +121,7 @@ pub fn GridPage<T: CardData + Clone + 'static>(resource: Resource<(), Vec<T>>) -
 #[component]
 pub fn DecadePage() -> impl IntoView {
     let decades = create_resource(|| (), |_| async move { get_decades().await });
+    //<GridPage resource=decades/>
     view! {
         <div
             style:position="absolute"
@@ -101,14 +129,17 @@ pub fn DecadePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <GridPage resource=decades/>
+
         </div>
     }
 }
 
 #[component]
 pub fn ProviderPage() -> impl IntoView {
-    let watch_providers = create_resource(|| (), |_| async move { get_watch_providers().await });
+    let watch_providers = create_resource(
+        || (),
+        |_| async move { fetch_simple_watch_providers().await },
+    );
     view! {
         <div
             style:position="absolute"
@@ -124,6 +155,7 @@ pub fn ProviderPage() -> impl IntoView {
 #[component]
 pub fn MoviePage() -> impl IntoView {
     let recommendations = create_resource(|| (), |_| async move { get_movies().await });
+    //<GridPage resource=recommendations/>
     view! {
         <div
             style:position="absolute"
@@ -131,7 +163,7 @@ pub fn MoviePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <GridPage resource=recommendations/>
+
         </div>
     }
 }

@@ -516,7 +516,6 @@ pub async fn get_movies() -> Vec<MovieRecommendation> {
 }
 
 pub async fn get_watch_providers() -> Vec<WatchProvider> {
-    thread::sleep(Duration::from_secs(1));
     vec![
         WatchProvider {
             provider_id: 8,
