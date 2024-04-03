@@ -2,6 +2,7 @@
 use std::sync::Arc;
 
 use leptos::{server_fn::redirect, svg::view, *};
+
 use leptos_meta::*;
 use leptos_router::*;
 use log::{info, Level};
@@ -40,17 +41,7 @@ pub fn App() -> impl IntoView {
         </body>
     }
 }
-/*<a href="/providers" class="btn btn-primary" on:click={
-    move |_| {
-        start_session.dispatch(StartSession{});
-    }
-}>"Get Started"</a>
 
-<button class="btn btn-primary" on:click={
-                move |_| {
-                    start_session.dispatch(StartSession{});
-                }
-            }>"Get Started"</button>*/
 #[component]
 pub fn HomePage() -> impl IntoView {
     let start_session = create_server_action::<StartSession>();
@@ -62,11 +53,11 @@ pub fn HomePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-        <A href="/providers" class="btn btn-primary" on:click={
+        <button class="btn btn-primary" on:click={
             move |_| {
                 start_session.dispatch(StartSession{});
             }
-        }>"Get Started"</A>
+        }>"Get Started"</button>
 
         </div>
     }
@@ -138,8 +129,9 @@ pub fn ProviderPage() -> impl IntoView {
         |_| async move { fetch_simple_watch_providers().await },
     );
     let get_session = create_server_action::<GetSession>();
-    let session_val = get_session.value();
     get_session.dispatch(GetSession {});
+    let session_val = get_session.value();
+    let pending = get_session.pending();
     view! {
         <div
             style:position="absolute"
@@ -147,6 +139,18 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+        <h1>{move || format!("{:#?}", pending())}</h1>
+            {move || {if pending().into() {
+                view! { <div class="loader"></div> }.into_view()
+            } else {
+                view! {
+                    {match session_val() {
+                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
+                        None => view! {}.into_view(),
+                    }}
+                }
+                    .into_view()
+            }}}
             <code>"Here yee: "{move || format!("{:#?}", session_val())}</code>
             <GridPage resource=watch_providers />
 
@@ -719,6 +723,7 @@ pub async fn fetch_genres() -> Result<Vec<Genre>, ServerFnError> {
 #[server(StartSession, "/api")]
 pub async fn start_session() -> Result<(), ServerFnError> {
     use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
+    use leptos_actix::redirect;
     use leptos_actix::ResponseOptions;
     println!("Got request to start session");
     // pull ResponseOptions from context
@@ -739,6 +744,7 @@ pub async fn start_session() -> Result<(), ServerFnError> {
                 ))
                 .expect("to create header value"),
             );
+            redirect("/providers");
             Ok(())
         }
     }

@@ -3,8 +3,6 @@ use actix_session::{storage::CookieSessionStore, *};
 #[cfg(feature = "ssr")]
 use actix_web::{cookie::Key, *};
 #[cfg(feature = "ssr")]
-use moodie_server::redis_helper::start_recommendation_session;
-#[cfg(feature = "ssr")]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
