@@ -9,46 +9,12 @@ use tracing::error;
 
 use crate::*;
 
-/*
-
 #[component]
 pub fn App() -> impl IntoView {
-    let (toggled, set_toggled) = create_signal(false);
+    //let session_resource =
+    //    create_blocking_resource(|| (), |_| async move { start_session().await });
 
-    // share `set_toggled` with all children of this component
-    provide_context(set_toggled);
-
-    view! {
-        <p>"Toggled? " {toggled}</p>
-        <Layout/>
-    }
-}
-
-// <Layout/> and <Content/> omitted
-// To work in this version, drop their references to set_toggled
-
-#[component]
-pub fn ButtonD() -> impl IntoView {
-    // use_context searches up the context tree, hoping to
-    // find a `WriteSignal<bool>`
-    // in this case, I .expect() because I know I provided it
-    let setter = use_context::<WriteSignal<bool>>()
-        .expect("to have found the setter provided");
-
-    view! {
-        <button
-            on:click=move |_| setter.update(|value| *value = !*value)
-        >
-            "Toggle"
-        </button>
-    }
-}*/
-
-#[component]
-pub fn App() -> impl IntoView {
-    let session_resource = create_resource(|| (), |_| async move { start_session().await });
-
-    provide_context(session_resource);
+    //provide_context(session_resource);
 
     //let loading = session_resource.loading();
 
@@ -73,7 +39,7 @@ pub fn App() -> impl IntoView {
                 <nav></nav>
                 <main>
                     <Routes>
-                        <Route path="/" view=ProviderPage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/providers" view=ProviderPage ssr=SsrMode::OutOfOrder/>
                         <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/runtime" view=RuntimePage/>
                         <Route path="/movies" view=MoviePage ssr=SsrMode::OutOfOrder/>
@@ -131,9 +97,6 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 #[component]
 pub fn DecadePage() -> impl IntoView {
     let decades = create_resource(|| (), |_| async move { fetch_decades().await });
-    let session_resource =
-        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
-    let loading = session_resource.loading();
     //<GridPage resource=decades/>
     view! {
         <div
@@ -142,19 +105,7 @@ pub fn DecadePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            {if loading() {
-                view! { <div class="loader"></div> }.into_view()
-            } else {
-                view! {
-                    {match session_resource.get() {
-                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
-                        None => view! {}.into_view(),
-                    }}
-
-                    <GridPage resource=decades/>
-                }
-                    .into_view()
-            }}
+            <GridPage resource=decades />
 
         </div>
     }
@@ -166,9 +117,6 @@ pub fn ProviderPage() -> impl IntoView {
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
-    let session_resource =
-        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
-    let loading = session_resource.loading();
     view! {
         <div
             style:position="absolute"
@@ -176,19 +124,7 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            {if loading() {
-                view! { <div class="loader"></div> <h1>"Hoo ha: "{session_resource.get()}</h1>}.into_view()
-            } else {
-                view! {
-                    {match session_resource.get() {
-                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
-                        None => view! {}.into_view(),
-                    }}
-
-                    <GridPage resource=watch_providers/>
-                }
-                    .into_view()
-            }}
+            <GridPage resource=watch_providers />
 
         </div>
     }
@@ -756,14 +692,25 @@ pub async fn fetch_genres() -> Result<Vec<Genre>, ServerFnError> {
     }
 }
 
-#[server(StartSession, "/api", "GetJson")]
+#[server(StartSession)]
 pub async fn start_session() -> Result<String, ServerFnError> {
+    use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
+    use leptos_actix::ResponseOptions;
     println!("Got request to start session");
+    // pull ResponseOptions from context
+    let response = expect_context::<leptos_actix::ResponseOptions>();
+
     match redis_helper::start_recommendation_session().await {
         Err(err) => Err(ServerFnError::new(format!(
             "Error creating session ID: {}",
             err
         ))),
-        Ok(session_id) => Ok(session_id),
+        Ok(session_id) => {
+            let mut cookie = actix_web::cookie::Cookie::build("session_id", &session_id).finish();
+            if let Ok(cookie) = HeaderValue::from_str(&cookie.to_string()) {
+                response.insert_header(header::SET_COOKIE, cookie);
+            }
+            Ok(session_id)
+        }
     }
 }

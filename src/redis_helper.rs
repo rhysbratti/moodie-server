@@ -6,7 +6,7 @@ cfg_if! {
     use lazy_static::lazy_static;
     use redis::{Commands, Connection};
     use uuid::Uuid;
-    //use moodie_server::RecommendationCriteria;
+    use crate::RecommendationCriteria;
 
     //const CONNECTION_STRING: &str = "redis://localhost:6379";
 
@@ -23,6 +23,7 @@ cfg_if! {
         };
     }
 
+    #[cfg(feature = "ssr")]
     pub async fn criteria_from_cache(
         session_id: &String,
     ) -> Result<RecommendationCriteria, redis::RedisError> {
@@ -39,6 +40,7 @@ cfg_if! {
         }
     }
 
+    #[cfg(feature = "ssr")]
     pub async fn criteria_to_cache(
         session_id: &String,
         criteria: RecommendationCriteria,
@@ -55,6 +57,7 @@ cfg_if! {
         }
     }
 
+    #[cfg(feature = "ssr")]
     pub async fn start_recommendation_session() -> Result<String, redis::RedisError> {
         match get_connection() {
             Ok(mut con) => {
@@ -79,6 +82,7 @@ cfg_if! {
         }
     }
 
+    #[cfg(feature = "ssr")]
     fn get_connection() -> Result<Connection, redis::RedisError> {
         match redis::Client::open(CONNECTION_STRING.as_str()) {
             Ok(client) => client.get_connection(),
@@ -86,6 +90,7 @@ cfg_if! {
         }
     }
 
+    #[cfg(feature = "ssr")]
     pub async fn end_session(session_id: String) {
         let mut con = get_connection().expect("Error connecting to redis");
 

@@ -2,11 +2,13 @@
 pub mod app;
 pub use app::*;
 #[cfg(feature = "ssr")]
-mod redis_helper;
+pub mod redis_helper;
 #[cfg(feature = "ssr")]
-mod tmdb;
+pub use redis_helper::start_recommendation_session;
 #[cfg(feature = "ssr")]
-mod tmdb_helper;
+pub mod tmdb;
+#[cfg(feature = "ssr")]
+pub mod tmdb_helper;
 use leptos::*;
 use serde::{Deserialize, Serialize};
 use std::{thread, time::Duration};
@@ -22,7 +24,6 @@ pub fn hydrate() {
     mount_to_body(App);
 }
 
-#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct RecommendationCriteria {
     pub genres: Option<Vec<Genre>>,
