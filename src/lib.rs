@@ -22,6 +22,7 @@ pub fn hydrate() {
     mount_to_body(App);
 }
 
+#[cfg(feature = "ssr")]
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct RecommendationCriteria {
     pub genres: Option<Vec<Genre>>,

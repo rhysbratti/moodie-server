@@ -6,6 +6,7 @@ cfg_if! {
     use lazy_static::lazy_static;
     use redis::{Commands, Connection};
     use uuid::Uuid;
+    //use moodie_server::RecommendationCriteria;
 
     //const CONNECTION_STRING: &str = "redis://localhost:6379";
 

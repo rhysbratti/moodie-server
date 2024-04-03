@@ -9,13 +9,48 @@ use tracing::error;
 
 use crate::*;
 
-use crate::{get_decades, get_movies, get_watch_providers, AddOrRemove, CardData, WatchProvider};
+/*
+
+#[component]
+pub fn App() -> impl IntoView {
+    let (toggled, set_toggled) = create_signal(false);
+
+    // share `set_toggled` with all children of this component
+    provide_context(set_toggled);
+
+    view! {
+        <p>"Toggled? " {toggled}</p>
+        <Layout/>
+    }
+}
+
+// <Layout/> and <Content/> omitted
+// To work in this version, drop their references to set_toggled
+
+#[component]
+pub fn ButtonD() -> impl IntoView {
+    // use_context searches up the context tree, hoping to
+    // find a `WriteSignal<bool>`
+    // in this case, I .expect() because I know I provided it
+    let setter = use_context::<WriteSignal<bool>>()
+        .expect("to have found the setter provided");
+
+    view! {
+        <button
+            on:click=move |_| setter.update(|value| *value = !*value)
+        >
+            "Toggle"
+        </button>
+    }
+}*/
 
 #[component]
 pub fn App() -> impl IntoView {
     let session_resource = create_resource(|| (), |_| async move { start_session().await });
 
-    let loading = session_resource.loading();
+    provide_context(session_resource);
+
+    //let loading = session_resource.loading();
 
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
@@ -33,50 +68,20 @@ pub fn App() -> impl IntoView {
 
         // content for this welcome page
         <body data-bs-theme="dark">
-        {move || {
-            if loading() {
-                view! {
-                    <div
-                        style:position="absolute"
-                        style:left="30%"
-                        style:top="30%"
-                        style:transform="translate(-20%, -25%)"
-                    >
-                        <div class="loader"></div>
-                    </div>
-                }
-                    .into_view()
-            } else {
-                match session_resource.get() {
-                    Some(session_id) => {
-                        let session_id = session_id.expect("Whoopsie");
-                        let provider_session = session_id.clone();
-                        let decade_session = session_id.clone();
-                        let runtime_session = session_id.clone();
-                        let movie_session = session_id.clone();
 
-                        view! {
-                                <Router>
-                                    <nav></nav>
-                                    <main>
-                                        <Routes>
-                                            <Route path="/" view={move|| view! {<ProviderPage session_id=provider_session.clone()/>}} ssr=SsrMode::OutOfOrder/>
-                                            <Route path="/decades" view={move || view! {<DecadePage session_id=decade_session.clone()/>}}  ssr=SsrMode::OutOfOrder/>
-                                            <Route path="/runtime" view={move || view! {<RuntimePage session_id=runtime_session.clone()/>}} />
-                                            <Route path="/movies" view={move || view! {<MoviePage session_id=movie_session.clone()/>}}  ssr=SsrMode::OutOfOrder/>
-                                            <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
-                                        </Routes>
-                                    </main>
-                                </Router>
-                        }
-                            .into_view()
-                    },
-                    None => {
-                        view! {}.into_view()
-                    }
-                }
-            }
-        }}
+            <Router>
+                <nav></nav>
+                <main>
+                    <Routes>
+                        <Route path="/" view=ProviderPage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/runtime" view=RuntimePage/>
+                        <Route path="/movies" view=MoviePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
+                    </Routes>
+                </main>
+            </Router>
+
         </body>
     }
 }
@@ -124,8 +129,11 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 }
 
 #[component]
-pub fn DecadePage(session_id: String) -> impl IntoView {
+pub fn DecadePage() -> impl IntoView {
     let decades = create_resource(|| (), |_| async move { fetch_decades().await });
+    let session_resource =
+        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
+    let loading = session_resource.loading();
     //<GridPage resource=decades/>
     view! {
         <div
@@ -134,17 +142,33 @@ pub fn DecadePage(session_id: String) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <GridPage resource=decades/>
+            {if loading() {
+                view! { <div class="loader"></div> }.into_view()
+            } else {
+                view! {
+                    {match session_resource.get() {
+                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
+                        None => view! {}.into_view(),
+                    }}
+
+                    <GridPage resource=decades/>
+                }
+                    .into_view()
+            }}
+
         </div>
     }
 }
 
 #[component]
-pub fn ProviderPage(session_id: String) -> impl IntoView {
+pub fn ProviderPage() -> impl IntoView {
     let watch_providers = create_resource(
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
+    let session_resource =
+        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
+    let loading = session_resource.loading();
     view! {
         <div
             style:position="absolute"
@@ -152,15 +176,30 @@ pub fn ProviderPage(session_id: String) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <GridPage resource=watch_providers/>
+            {if loading() {
+                view! { <div class="loader"></div> <h1>"Hoo ha: "{session_resource.get()}</h1>}.into_view()
+            } else {
+                view! {
+                    {match session_resource.get() {
+                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
+                        None => view! {}.into_view(),
+                    }}
+
+                    <GridPage resource=watch_providers/>
+                }
+                    .into_view()
+            }}
+
         </div>
     }
 }
 
 #[component]
-pub fn MoviePage(session_id: String) -> impl IntoView {
+pub fn MoviePage() -> impl IntoView {
     let recommendations = create_resource(|| (), |_| async move { get_movies().await });
-    //<GridPage resource=recommendations/>
+    let session_resource =
+        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
+    let loading = session_resource.loading();
     view! {
         <div
             style:position="absolute"
@@ -168,6 +207,17 @@ pub fn MoviePage(session_id: String) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+            {if loading() {
+                view! { <div class="loader"></div> }.into_view()
+            } else {
+                view! {
+                    {match session_resource.get() {
+                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
+                        None => view! {}.into_view(),
+                    }}
+                }
+                    .into_view()
+            }}
 
         </div>
     }
@@ -194,8 +244,11 @@ fn NotFound() -> impl IntoView {
 }
 
 #[component]
-fn RuntimePage(session_id: String) -> impl IntoView {
+fn RuntimePage() -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
+    let session_resource =
+        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
+    let loading = session_resource.loading();
     view! {
         <div
             style:position="absolute"
@@ -203,6 +256,18 @@ fn RuntimePage(session_id: String) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+            {if loading() {
+                view! { <div class="loader"></div> }.into_view()
+            } else {
+                view! {
+                    {match session_resource.get() {
+                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
+                        None => view! {}.into_view(),
+                    }}
+                }
+                    .into_view()
+            }}
+
             <div style:display="flex" style:alignItems="center" style:justifyContent="center">
                 <div style:width="600px">
                     <input
@@ -362,6 +427,8 @@ use crate::{tmdb::Tmdb, *};
 lazy_static! {
     static ref TMDB: Arc<Tmdb> = Tmdb::shared_instance();
 }
+
+/* Server functions */
 
 #[server(FetchRuntimes, "/api", "GetJson")]
 pub async fn fetch_runtimes() -> Result<Vec<RuntimeInfo>, ServerFnError> {

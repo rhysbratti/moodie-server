@@ -1,9 +1,13 @@
 #[cfg(feature = "ssr")]
+use actix_session::{storage::CookieSessionStore, *};
+#[cfg(feature = "ssr")]
+use actix_web::{cookie::Key, *};
+#[cfg(feature = "ssr")]
+mod redis_helper;
+#[cfg(feature = "ssr")]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
-    use actix_session::{storage::CookieSessionStore, *};
-    use actix_web::{cookie::Key, *};
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
     use moodie_server::app::*;
@@ -64,4 +68,20 @@ pub fn main() {
     console_error_panic_hook::set_once();
 
     leptos::mount_to_body(App);
+}
+
+#[cfg(feature = "ssr")]
+async fn get_session_cookie() -> impl Responder {
+    println!("Got request to start session");
+    match redis_helper::start_recommendation_session().await {
+        Err(err) => HttpResponse::InternalServerError().body("Uh oh"),
+        Ok(session_id) => {
+            let cookie = cookie::Cookie::build("session_id", session_id)
+                .path("/")
+                .secure(false) // Set to true in production with HTTPS
+                .http_only(true)
+                .finish();
+            HttpResponse::Ok().cookie(cookie).body("Session created")
+        }
+    }
 }
