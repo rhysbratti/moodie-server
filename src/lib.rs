@@ -18,9 +18,18 @@ use std::{thread, time::Duration};
 pub fn hydrate() {
     use app::*;
     use leptos::*;
+    use wasm_bindgen::JsCast;
 
     console_error_panic_hook::set_once();
 
+    /*
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+    let html_doc = document.dyn_into::<web_sys::HtmlDocument>().unwrap();
+    html_doc
+        .set_cookie(session_id.as_str())
+        .expect("unable to set cookie");
+    */
     mount_to_body(App);
 }
 

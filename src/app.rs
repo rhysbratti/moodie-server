@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::sync::Arc;
 
-use leptos::{svg::view, *};
+use leptos::{server_fn::redirect, svg::view, *};
 use leptos_meta::*;
 use leptos_router::*;
 use log::{info, Level};
@@ -11,18 +11,9 @@ use crate::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    //let session_resource =
-    //    create_blocking_resource(|| (), |_| async move { start_session().await });
-
-    //provide_context(session_resource);
-
-    //let loading = session_resource.loading();
-
-    // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
-    //let (watch_providers, _) = create_signal(get_watch_providers());
     view! {
-        <Stylesheet id="leptos" href="/pkg/moodie-server.css"/>
+        <Stylesheet id="leptos" href="/pkg/moodie_server.css"/>
         <Stylesheet
             id="boostrap"
             href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -30,15 +21,13 @@ pub fn App() -> impl IntoView {
 
         <Title text="Moodie"/>
 
-        // <div class="loader"></div>
-
-        // content for this welcome page
         <body data-bs-theme="dark">
 
             <Router>
                 <nav></nav>
                 <main>
                     <Routes>
+                        <Route path="/" view=HomePage />
                         <Route path="/providers" view=ProviderPage ssr=SsrMode::OutOfOrder/>
                         <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/runtime" view=RuntimePage/>
@@ -49,6 +38,37 @@ pub fn App() -> impl IntoView {
             </Router>
 
         </body>
+    }
+}
+/*<a href="/providers" class="btn btn-primary" on:click={
+    move |_| {
+        start_session.dispatch(StartSession{});
+    }
+}>"Get Started"</a>
+
+<button class="btn btn-primary" on:click={
+                move |_| {
+                    start_session.dispatch(StartSession{});
+                }
+            }>"Get Started"</button>*/
+#[component]
+pub fn HomePage() -> impl IntoView {
+    let start_session = create_server_action::<StartSession>();
+
+    view! {
+        <div
+            style:position="absolute"
+            style:left="45%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+        <A href="/providers" class="btn btn-primary" on:click={
+            move |_| {
+                start_session.dispatch(StartSession{});
+            }
+        }>"Get Started"</A>
+
+        </div>
     }
 }
 
@@ -117,6 +137,9 @@ pub fn ProviderPage() -> impl IntoView {
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
+    let get_session = create_server_action::<GetSession>();
+    let session_val = get_session.value();
+    get_session.dispatch(GetSession {});
     view! {
         <div
             style:position="absolute"
@@ -124,6 +147,7 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+            <code>"Here yee: "{move || format!("{:#?}", session_val())}</code>
             <GridPage resource=watch_providers />
 
         </div>
@@ -692,8 +716,8 @@ pub async fn fetch_genres() -> Result<Vec<Genre>, ServerFnError> {
     }
 }
 
-#[server(StartSession)]
-pub async fn start_session() -> Result<String, ServerFnError> {
+#[server(StartSession, "/api")]
+pub async fn start_session() -> Result<(), ServerFnError> {
     use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
     use leptos_actix::ResponseOptions;
     println!("Got request to start session");
@@ -706,11 +730,39 @@ pub async fn start_session() -> Result<String, ServerFnError> {
             err
         ))),
         Ok(session_id) => {
-            let mut cookie = actix_web::cookie::Cookie::build("session_id", &session_id).finish();
-            if let Ok(cookie) = HeaderValue::from_str(&cookie.to_string()) {
-                response.insert_header(header::SET_COOKIE, cookie);
-            }
-            Ok(session_id)
+            println!("Session: {}", &session_id);
+            response.append_header(
+                header::SET_COOKIE,
+                HeaderValue::from_str(&format!(
+                    "SESSION_ID={session_id};\
+                     Path=/"
+                ))
+                .expect("to create header value"),
+            );
+            Ok(())
+        }
+    }
+}
+
+#[server(GetSession, "/api")]
+pub async fn get_session() -> Result<String, ServerFnError> {
+    use actix_web::HttpRequest;
+    use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
+    use leptos_actix::ResponseOptions;
+    println!("Got a request for session data");
+    // pull ResponseOptions from context
+    let response = expect_context::<HttpRequest>();
+
+    match response.cookie("SESSION_ID") {
+        Some(cookie) => {
+            println!("Found a cookie: {}", &cookie);
+            Ok(cookie.to_string())
+        }
+        None => {
+            println!("No cookie found :/");
+            Err(ServerFnError::ServerError(
+                "No cookie named SESSION_ID exists".to_string(),
+            ))
         }
     }
 }
