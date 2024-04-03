@@ -5,6 +5,8 @@ pub use app::*;
 pub mod redis_helper;
 #[cfg(feature = "ssr")]
 pub use redis_helper::start_recommendation_session;
+pub mod server_functions;
+pub use server_functions::*;
 #[cfg(feature = "ssr")]
 pub mod tmdb;
 #[cfg(feature = "ssr")]
