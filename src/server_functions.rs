@@ -353,23 +353,28 @@ pub async fn start_session() -> Result<String, ServerFnError> {
     // pull ResponseOptions from context
     let response = expect_context::<leptos_actix::ResponseOptions>();
 
-    match redis_helper::start_recommendation_session().await {
-        Err(err) => Err(ServerFnError::new(format!(
-            "Error creating session ID: {}",
-            err
-        ))),
-        Ok(session_id) => {
-            println!("Session: {}", &session_id);
-            response.append_header(
-                header::SET_COOKIE,
-                HeaderValue::from_str(&format!(
-                    "SESSION_ID={session_id};\
-                     Path=/"
-                ))
-                .expect("to create header value"),
-            );
-            Ok(session_id)
-        }
+    let existing_cookie = get_session().await;
+
+    match existing_cookie {
+        Ok(existing_session_id) => Ok(existing_session_id),
+        Err(_) => match redis_helper::start_recommendation_session().await {
+            Err(err) => Err(ServerFnError::new(format!(
+                "Error creating session ID: {}",
+                err
+            ))),
+            Ok(session_id) => {
+                println!("Session: {}", &session_id);
+                response.append_header(
+                    header::SET_COOKIE,
+                    HeaderValue::from_str(&format!(
+                        "SESSION_ID={session_id};\
+                             Path=/"
+                    ))
+                    .expect("to create header value"),
+                );
+                Ok(session_id)
+            }
+        },
     }
 }
 

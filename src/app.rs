@@ -14,9 +14,9 @@ use crate::*;
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    let (session_id, set_session_id) = create_signal(String::from(""));
+    //let (session_id, set_session_id) = create_signal(String::from(""));
 
-    provide_context(session_id);
+    //provide_context(session_id);
 
     view! {
         <Stylesheet id="leptos" href="/pkg/moodie_server.css"/>
@@ -33,11 +33,11 @@ pub fn App() -> impl IntoView {
                 <nav></nav>
                 <main>
                     <Routes>
-                        <Route path="/" view={move || view! { <HomePage set_session_id=set_session_id />}} />
-                        <Route path="/providers" view=ProviderPage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/runtime" view=RuntimePage/>
-                        <Route path="/movies" view=MoviePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/" view=HomePage />
+                        <Route path="/providers/:session_id" view=ProviderPage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/decades/:session_id" view=DecadePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/runtime/:session_id" view=RuntimePage/>
+                        <Route path="/movies/:session_id" view=MoviePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                     </Routes>
                 </main>
@@ -48,14 +48,16 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-pub fn HomePage(set_session_id: WriteSignal<String>) -> impl IntoView {
-    //let start_session = create_server_action::<StartSession>();
+pub fn HomePage() -> impl IntoView {
     let start_session = create_server_action::<StartSession>();
 
     let pending = start_session.pending();
-    let session_id = start_session.value();
+    let session_value = start_session.value();
+    let version = start_session.version();
 
-    start_session.dispatch(StartSession {});
+    if version.get() == 0 {
+        start_session.dispatch(StartSession {});
+    }
 
     view! {
         <div
@@ -64,22 +66,25 @@ pub fn HomePage(set_session_id: WriteSignal<String>) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-        {move || {if pending() {
+        {move || {
+        {if pending() {
             view!{<div class="loader"></div>}.into_view()
         } else{
-            match session_id() {
-                Some(result) => {
-                    match result {
-                        Ok(id) => set_session_id(id),
-                        Err(_) => {}
-                    }
-                },
-                None => {}
-            };
+            let session_id = session_value();
             view! {
-                <A href="/providers" class="btn btn-primary" >"Get Started"</A>
+                <A href={
+                    match session_value(){
+                        Some(session_result) => {
+                            match session_result {
+                                Ok(session_id) => format!("/providers/{}", session_id),
+                                Err(_) => String::from("/")
+                            }
+                        },
+                        None => String::from("/")
+                    }
+                } class="btn btn-primary" >"Get Started"</A>
             }.into_view()
-        }}}
+        }}}}
 
 
         </div>
@@ -131,7 +136,12 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 #[component]
 pub fn DecadePage() -> impl IntoView {
     let decades = create_resource(|| (), |_| async move { fetch_decades().await });
-    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
     view! {
         <div
             style:position="absolute"
@@ -139,7 +149,7 @@ pub fn DecadePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{move || format!("{:#?}", session_id.get()) }</h1>
+            <h1>{session_id}</h1>
             <GridPage resource=decades />
 
         </div>
@@ -152,7 +162,12 @@ pub fn ProviderPage() -> impl IntoView {
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
-    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
     view! {
         <div
             style:position="absolute"
@@ -160,9 +175,9 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{move || format!("{:#?}", session_id.get()) }</h1>
+            <h1>{session_id}</h1>
             <GridPage resource=watch_providers />
-            <A href="/runtime" class="btn btn-primary" >"To Runtime"</A>
+            <A href={format!("/runtime/{}", session_id())} class="btn btn-primary" >"To Runtime"</A>
         </div>
     }
 }
@@ -220,7 +235,13 @@ fn NotFound() -> impl IntoView {
 #[component]
 fn RuntimePage() -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
-    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    //let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
     view! {
         <div
             style:position="absolute"
@@ -228,6 +249,7 @@ fn RuntimePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+            <h1>{session_id}</h1>
             <div style:display="flex" style:alignItems="center" style:justifyContent="center">
                 <div style:width="600px">
                     <input
@@ -262,7 +284,7 @@ fn RuntimePage() -> impl IntoView {
                 </div>
             </div>
             <h1>{runtime}</h1>
-            <A href="/decades" class="btn btn-primary" >"To Decades"</A>
+            <A href={format!("/decades/{}", session_id())} class="btn btn-primary" >"To Decades"</A>
         </div>
     }
 }
