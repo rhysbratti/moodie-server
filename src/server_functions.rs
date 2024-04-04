@@ -345,7 +345,7 @@ pub async fn fetch_genres() -> Result<Vec<Genre>, ServerFnError> {
 }
 
 #[server(StartSession, "/api")]
-pub async fn start_session() -> Result<(), ServerFnError> {
+pub async fn start_session() -> Result<String, ServerFnError> {
     use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
     use leptos_actix::redirect;
     use leptos_actix::ResponseOptions;
@@ -368,8 +368,7 @@ pub async fn start_session() -> Result<(), ServerFnError> {
                 ))
                 .expect("to create header value"),
             );
-            redirect("/providers");
-            Ok(())
+            Ok(session_id)
         }
     }
 }
@@ -386,7 +385,7 @@ pub async fn get_session() -> Result<String, ServerFnError> {
     match response.cookie("SESSION_ID") {
         Some(cookie) => {
             println!("Found a cookie: {}", &cookie);
-            Ok(cookie.to_string())
+            Ok(cookie.to_string().replace("SESSION_ID=", ""))
         }
         None => {
             println!("No cookie found :/");

@@ -13,6 +13,11 @@ use crate::*;
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+
+    let (session_id, set_session_id) = create_signal(String::from(""));
+
+    provide_context(session_id);
+
     view! {
         <Stylesheet id="leptos" href="/pkg/moodie_server.css"/>
         <Stylesheet
@@ -28,7 +33,7 @@ pub fn App() -> impl IntoView {
                 <nav></nav>
                 <main>
                     <Routes>
-                        <Route path="/" view=HomePage />
+                        <Route path="/" view={move || view! { <HomePage set_session_id=set_session_id />}} />
                         <Route path="/providers" view=ProviderPage ssr=SsrMode::OutOfOrder/>
                         <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/runtime" view=RuntimePage/>
@@ -43,8 +48,14 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-pub fn HomePage() -> impl IntoView {
+pub fn HomePage(set_session_id: WriteSignal<String>) -> impl IntoView {
+    //let start_session = create_server_action::<StartSession>();
     let start_session = create_server_action::<StartSession>();
+
+    let pending = start_session.pending();
+    let session_id = start_session.value();
+
+    start_session.dispatch(StartSession {});
 
     view! {
         <div
@@ -53,11 +64,23 @@ pub fn HomePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-        <button class="btn btn-primary" on:click={
-            move |_| {
-                start_session.dispatch(StartSession{});
-            }
-        }>"Get Started"</button>
+        {move || {if pending() {
+            view!{<div class="loader"></div>}.into_view()
+        } else{
+            match session_id() {
+                Some(result) => {
+                    match result {
+                        Ok(id) => set_session_id(id),
+                        Err(_) => {}
+                    }
+                },
+                None => {}
+            };
+            view! {
+                <A href="/providers" class="btn btn-primary" >"Get Started"</A>
+            }.into_view()
+        }}}
+
 
         </div>
     }
@@ -108,7 +131,7 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 #[component]
 pub fn DecadePage() -> impl IntoView {
     let decades = create_resource(|| (), |_| async move { fetch_decades().await });
-    //<GridPage resource=decades/>
+    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
     view! {
         <div
             style:position="absolute"
@@ -116,6 +139,7 @@ pub fn DecadePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+            <h1>{move || format!("{:#?}", session_id.get()) }</h1>
             <GridPage resource=decades />
 
         </div>
@@ -128,10 +152,7 @@ pub fn ProviderPage() -> impl IntoView {
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
-    let get_session = create_server_action::<GetSession>();
-    get_session.dispatch(GetSession {});
-    let session_val = get_session.value();
-    let pending = get_session.pending();
+    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
     view! {
         <div
             style:position="absolute"
@@ -139,21 +160,9 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-        <h1>{move || format!("{:#?}", pending())}</h1>
-            {move || {if pending().into() {
-                view! { <div class="loader"></div> }.into_view()
-            } else {
-                view! {
-                    {match session_val() {
-                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
-                        None => view! {}.into_view(),
-                    }}
-                }
-                    .into_view()
-            }}}
-            <code>"Here yee: "{move || format!("{:#?}", session_val())}</code>
+            <h1>{move || format!("{:#?}", session_id.get()) }</h1>
             <GridPage resource=watch_providers />
-
+            <A href="/runtime" class="btn btn-primary" >"To Runtime"</A>
         </div>
     }
 }
@@ -171,6 +180,7 @@ pub fn MoviePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
+            <h1>{move || println!("{:#?}", loading())}</h1>
             {if loading() {
                 view! { <div class="loader"></div> }.into_view()
             } else {
@@ -210,9 +220,7 @@ fn NotFound() -> impl IntoView {
 #[component]
 fn RuntimePage() -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
-    let session_resource =
-        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
-    let loading = session_resource.loading();
+    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
     view! {
         <div
             style:position="absolute"
@@ -220,18 +228,6 @@ fn RuntimePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            {if loading() {
-                view! { <div class="loader"></div> }.into_view()
-            } else {
-                view! {
-                    {match session_resource.get() {
-                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
-                        None => view! {}.into_view(),
-                    }}
-                }
-                    .into_view()
-            }}
-
             <div style:display="flex" style:alignItems="center" style:justifyContent="center">
                 <div style:width="600px">
                     <input
@@ -266,6 +262,7 @@ fn RuntimePage() -> impl IntoView {
                 </div>
             </div>
             <h1>{runtime}</h1>
+            <A href="/decades" class="btn btn-primary" >"To Decades"</A>
         </div>
     }
 }
