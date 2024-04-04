@@ -1,9 +1,11 @@
 #[cfg(feature = "ssr")]
+use actix_session::{storage::CookieSessionStore, *};
+#[cfg(feature = "ssr")]
+use actix_web::{cookie::Key, *};
+#[cfg(feature = "ssr")]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
-    use actix_session::{storage::CookieSessionStore, *};
-    use actix_web::{cookie::Key, *};
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
     use moodie_server::app::*;
@@ -19,12 +21,17 @@ async fn main() -> std::io::Result<()> {
         let site_root = &leptos_options.site_root;
 
         App::new()
+            .wrap(SessionMiddleware::new(
+                CookieSessionStore::default(),
+                Key::generate(),
+            ))
             // serve JS/WASM/CSS from `pkg`
             .service(Files::new("/pkg", format!("{site_root}/pkg")))
             // serve other assets from the `assets` directory
             .service(Files::new("/assets", site_root))
             // serve the favicon from /favicon.ico
             .service(favicon)
+            //.service(session)
             .leptos_routes(leptos_options.to_owned(), routes.to_owned(), App)
             .app_data(web::Data::new(leptos_options.to_owned()))
         //.wrap(middleware::Compress::default())
@@ -65,3 +72,23 @@ pub fn main() {
 
     leptos::mount_to_body(App);
 }
+
+/*
+#[cfg(feature = "ssr")]
+#[actix_web::get("/")]
+async fn session() -> impl Responder {
+    println!("Got request to start session");
+    match start_recommendation_session().await {
+        Err(err) => HttpResponse::InternalServerError().body("Uh oh"),
+        Ok(session_id) => {
+            let cookie = cookie::Cookie::build("session_id", session_id)
+                .path("/")
+                .secure(false) // Set to true in production with HTTPS
+                .http_only(true)
+                .finish();
+            leptos_actix::redirect("/providers");
+            HttpResponse::Ok().cookie(cookie).body("")
+        }
+    }
+}
+*/

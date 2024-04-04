@@ -2,12 +2,15 @@
 pub mod app;
 pub use app::*;
 #[cfg(feature = "ssr")]
-mod redis_helper;
-mod server_functions;
+pub mod redis_helper;
 #[cfg(feature = "ssr")]
-mod tmdb;
+pub use redis_helper::start_recommendation_session;
+pub mod server_functions;
+pub use server_functions::*;
 #[cfg(feature = "ssr")]
-mod tmdb_helper;
+pub mod tmdb;
+#[cfg(feature = "ssr")]
+pub mod tmdb_helper;
 use leptos::*;
 use serde::{Deserialize, Serialize};
 use std::{thread, time::Duration};
@@ -17,9 +20,18 @@ use std::{thread, time::Duration};
 pub fn hydrate() {
     use app::*;
     use leptos::*;
+    use wasm_bindgen::JsCast;
 
     console_error_panic_hook::set_once();
 
+    /*
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+    let html_doc = document.dyn_into::<web_sys::HtmlDocument>().unwrap();
+    html_doc
+        .set_cookie(session_id.as_str())
+        .expect("unable to set cookie");
+    */
     mount_to_body(App);
 }
 

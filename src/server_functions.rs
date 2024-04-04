@@ -1,7 +1,9 @@
-/*
+use leptos::{server_fn::redirect, svg::view, *};
 use std::sync::Arc;
 
-use crate::leptos_server::*;
+use crate::*;
+use leptos_meta::*;
+use leptos_router::*;
 
 #[cfg(feature = "ssr")]
 use lazy_static::lazy_static;
@@ -13,6 +15,8 @@ use crate::{tmdb::Tmdb, *};
 lazy_static! {
     static ref TMDB: Arc<Tmdb> = Tmdb::shared_instance();
 }
+
+/* Server functions */
 
 #[server(FetchRuntimes, "/api", "GetJson")]
 pub async fn fetch_runtimes() -> Result<Vec<RuntimeInfo>, ServerFnError> {
@@ -27,17 +31,17 @@ pub async fn fetch_runtimes() -> Result<Vec<RuntimeInfo>, ServerFnError> {
 }
 
 #[server(FetchDecades, "/api", "GetJson")]
-pub async fn fetch_decades() -> Result<Vec<DecadeInfo>, ServerFnError> {
+pub async fn fetch_decades() -> Result<Vec<Decade>, ServerFnError> {
     let decades = vec![
-        Decade::Classic.info(),
-        Decade::Fifties.info(),
-        Decade::Sixties.info(),
-        Decade::Seventies.info(),
-        Decade::Eighties.info(),
-        Decade::Nineties.info(),
-        Decade::TwoThousands.info(),
-        Decade::TwentyTens.info(),
-        Decade::Recent.info(),
+        Decade::Classic,
+        Decade::Fifties,
+        Decade::Sixties,
+        Decade::Seventies,
+        Decade::Eighties,
+        Decade::Nineties,
+        Decade::TwoThousands,
+        Decade::TwentyTens,
+        Decade::Recent,
     ];
 
     Ok(decades)
@@ -340,217 +344,54 @@ pub async fn fetch_genres() -> Result<Vec<Genre>, ServerFnError> {
     }
 }
 
-#[server(StartSession, "/api", "GetJson")]
+#[server(StartSession, "/api")]
 pub async fn start_session() -> Result<String, ServerFnError> {
+    use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
+    use leptos_actix::redirect;
+    use leptos_actix::ResponseOptions;
     println!("Got request to start session");
+    // pull ResponseOptions from context
+    let response = expect_context::<leptos_actix::ResponseOptions>();
+
     match redis_helper::start_recommendation_session().await {
         Err(err) => Err(ServerFnError::new(format!(
             "Error creating session ID: {}",
             err
         ))),
-        Ok(session_id) => Ok(session_id),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn get_criteria() -> RecommendationCriteria {
-        RecommendationCriteria {
-            genres: Some(vec![Genre {
-                id: 234,
-                name: "test".to_string(),
-            }]),
-            watch_providers: Some(vec![WatchProvider {
-                provider_id: 434,
-                provider_name: "foo".to_string(),
-                logo_path: "/".to_string(),
-            }]),
-            runtime: Some(Runtime::Average),
-            decade: Some(Decade::Recent),
-            feedback: None,
+        Ok(session_id) => {
+            println!("Session: {}", &session_id);
+            response.append_header(
+                header::SET_COOKIE,
+                HeaderValue::from_str(&format!(
+                    "SESSION_ID={session_id};\
+                     Path=/"
+                ))
+                .expect("to create header value"),
+            );
+            Ok(session_id)
         }
     }
+}
 
-    #[test]
-    fn test_update_feedback_criteria() {
-        let mut criteria = get_criteria();
+#[server(GetSession, "/api")]
+pub async fn get_session() -> Result<String, ServerFnError> {
+    use actix_web::HttpRequest;
+    use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
+    use leptos_actix::ResponseOptions;
+    println!("Got a request for session data");
+    // pull ResponseOptions from context
+    let response = expect_context::<HttpRequest>();
 
-        let criteria_feedback = Feedback {
-            like: Some(vec![222, 444, 666]),
-            dislike: Some(vec![111, 333, 555]),
-        };
-
-        let new_feedback = Feedback {
-            like: Some(vec![888, 1010, 1212]),
-            dislike: Some(vec![777, 999, 1111]),
-        };
-
-        criteria.feedback = Some(criteria_feedback);
-
-        let updated_criteria = update_feedback(criteria, new_feedback);
-
-        assert!(updated_criteria.feedback.is_some());
-
-        let updated_feedback = updated_criteria.feedback.unwrap();
-
-        assert_eq!(
-            updated_feedback.like.unwrap(),
-            vec![222, 444, 666, 888, 1010, 1212]
-        );
-
-        assert_eq!(
-            updated_feedback.dislike.unwrap(),
-            vec![111, 333, 555, 777, 999, 1111]
-        );
-    }
-
-    #[test]
-    fn test_update_feedback_criteria_empty_likes() {
-        let mut criteria = get_criteria();
-
-        let criteria_feedback = Feedback {
-            like: None,
-            dislike: Some(vec![111, 333, 555]),
-        };
-
-        let new_feedback = Feedback {
-            like: Some(vec![888, 1010, 1212]),
-            dislike: Some(vec![777, 999, 1111]),
-        };
-
-        criteria.feedback = Some(criteria_feedback);
-
-        let updated_criteria = update_feedback(criteria, new_feedback);
-
-        assert!(updated_criteria.feedback.is_some());
-
-        let updated_feedback = updated_criteria.feedback.unwrap();
-
-        assert_eq!(updated_feedback.like.unwrap(), vec![888, 1010, 1212]);
-
-        assert_eq!(
-            updated_feedback.dislike.unwrap(),
-            vec![111, 333, 555, 777, 999, 1111]
-        );
-    }
-
-    #[test]
-    fn test_update_feedback_criteria_empty_dislikes() {
-        let mut criteria = get_criteria();
-
-        let criteria_feedback = Feedback {
-            like: Some(vec![222, 444, 666]),
-            dislike: None,
-        };
-
-        let new_feedback = Feedback {
-            like: Some(vec![888, 1010, 1212]),
-            dislike: Some(vec![777, 999, 1111]),
-        };
-
-        criteria.feedback = Some(criteria_feedback);
-
-        let updated_criteria = update_feedback(criteria, new_feedback);
-
-        assert!(updated_criteria.feedback.is_some());
-
-        let updated_feedback = updated_criteria.feedback.unwrap();
-
-        assert_eq!(
-            updated_feedback.like.unwrap(),
-            vec![222, 444, 666, 888, 1010, 1212]
-        );
-
-        assert_eq!(updated_feedback.dislike.unwrap(), vec![777, 999, 1111]);
-    }
-
-    #[test]
-    fn test_update_feedback_empty_likes() {
-        let mut criteria = get_criteria();
-
-        let criteria_feedback = Feedback {
-            like: Some(vec![222, 444, 666]),
-            dislike: Some(vec![111, 333, 555]),
-        };
-
-        let new_feedback = Feedback {
-            like: None,
-            dislike: Some(vec![777, 999, 1111]),
-        };
-
-        criteria.feedback = Some(criteria_feedback);
-
-        let updated_criteria = update_feedback(criteria, new_feedback);
-
-        assert!(updated_criteria.feedback.is_some());
-
-        let updated_feedback = updated_criteria.feedback.unwrap();
-
-        assert_eq!(updated_feedback.like.unwrap(), vec![222, 444, 666]);
-
-        assert_eq!(
-            updated_feedback.dislike.unwrap(),
-            vec![111, 333, 555, 777, 999, 1111]
-        );
-    }
-
-    #[test]
-    fn test_update_feedback_empty_dislikes() {
-        let mut criteria = get_criteria();
-
-        let criteria_feedback = Feedback {
-            like: Some(vec![222, 444, 666]),
-            dislike: Some(vec![111, 333, 555]),
-        };
-
-        let new_feedback = Feedback {
-            like: Some(vec![888, 1010, 1212]),
-            dislike: None,
-        };
-
-        criteria.feedback = Some(criteria_feedback);
-
-        let updated_criteria = update_feedback(criteria, new_feedback);
-
-        assert!(updated_criteria.feedback.is_some());
-
-        let updated_feedback = updated_criteria.feedback.unwrap();
-
-        assert_eq!(
-            updated_feedback.like.unwrap(),
-            vec![222, 444, 666, 888, 1010, 1212]
-        );
-
-        assert_eq!(updated_feedback.dislike.unwrap(), vec![111, 333, 555]);
-    }
-
-    #[test]
-    fn test_update_feedback_empty_criteria() {
-        let mut criteria = get_criteria();
-
-        let criteria_feedback = Feedback {
-            like: None,
-            dislike: None,
-        };
-
-        let new_feedback = Feedback {
-            like: Some(vec![888, 1010, 1212]),
-            dislike: Some(vec![777, 999, 1111]),
-        };
-
-        criteria.feedback = Some(criteria_feedback);
-
-        let updated_criteria = update_feedback(criteria, new_feedback);
-
-        assert!(updated_criteria.feedback.is_some());
-
-        let updated_feedback = updated_criteria.feedback.unwrap();
-
-        assert_eq!(updated_feedback.like.unwrap(), vec![888, 1010, 1212]);
-
-        assert_eq!(updated_feedback.dislike.unwrap(), vec![777, 999, 1111]);
+    match response.cookie("SESSION_ID") {
+        Some(cookie) => {
+            println!("Found a cookie: {}", &cookie);
+            Ok(cookie.to_string().replace("SESSION_ID=", ""))
+        }
+        None => {
+            println!("No cookie found :/");
+            Err(ServerFnError::ServerError(
+                "No cookie named SESSION_ID exists".to_string(),
+            ))
+        }
     }
 }
-*/
