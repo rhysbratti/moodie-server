@@ -135,7 +135,7 @@ cfg_if! {
         pub async fn get_recommendations(
             &self,
             genres: Vec<Genre>,
-            watch_providers: Vec<WatchProvider>,
+            watch_providers: Vec<i32>,
             runtime: Runtime,
             decade: Decade,
             feedback: Option<Feedback>,
@@ -148,7 +148,7 @@ cfg_if! {
 
             let provider_ids: String = watch_providers
                 .iter()
-                .map(|p| p.provider_id.to_string())
+                .map(|p| p.to_string())
                 .collect::<Vec<_>>()
                 .join("|");
 
@@ -483,18 +483,7 @@ cfg_if! {
                     name: "Adventure".to_string(),
                 },
             ];
-            let watch_providers = vec![
-                WatchProvider {
-                    logo_path: "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg".to_string(),
-                    provider_name: "Netflix".to_string(),
-                    provider_id: 8,
-                },
-                WatchProvider {
-                    logo_path: "/7YPdUs60C9qQQQfOFCgxpnF07D9.jpg".to_string(),
-                    provider_name: "Disney Plus".to_string(),
-                    provider_id: 337,
-                },
-            ];
+            let watch_providers = vec![8,337];
 
             let runtime = Runtime::Average;
 

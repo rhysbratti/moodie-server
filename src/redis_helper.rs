@@ -122,11 +122,7 @@ cfg_if! {
                     id: 1,
                     name: "foo".to_string(),
                 }]),
-                watch_providers: Some(vec![WatchProvider {
-                    logo_path: "/".to_string(),
-                    provider_id: 1,
-                    provider_name: "bar".to_string(),
-                }]),
+                watch_providers: Some(vec![1]),
                 runtime: Some(Runtime::MovieNight),
                 decade: Some(Decade::Eighties),
                 feedback: None,

@@ -117,10 +117,7 @@ pub async fn post_decades(session_id: String, decade: DecadeResponse) -> Result<
 }
 
 #[server(PostProviders, "/api")]
-pub async fn post_providers(
-    session_id: String,
-    providers: Vec<WatchProvider>,
-) -> Result<(), ServerFnError> {
+pub async fn post_providers(session_id: String, providers: Vec<i32>) -> Result<(), ServerFnError> {
     let id = session_id.clone();
 
     match redis_helper::criteria_from_cache(&session_id).await {

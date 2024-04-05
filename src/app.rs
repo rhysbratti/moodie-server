@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::sync::Arc;
 
-use leptos::{server_fn::redirect, svg::view, *};
+use leptos::{html::s, server_fn::redirect, svg::view, *};
 
 use leptos_meta::*;
 use leptos_router::*;
@@ -33,10 +33,15 @@ pub fn App() -> impl IntoView {
                 <nav></nav>
                 <main>
                     <Routes>
-                        <Route path="/" view=HomePage />
-                        <Route path="/providers/:session_id" view=ProviderPage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/" view=HomePage/>
+                        <Route
+                            path="/providers/:session_id"
+                            view=ProviderPage
+                            ssr=SsrMode::OutOfOrder
+                        />
                         <Route path="/decades/:session_id" view=DecadePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/runtime/:session_id" view=RuntimePage/>
+                        <Route path="/genres/:session_id" view=GenrePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/movies/:session_id" view=MoviePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                     </Routes>
@@ -66,26 +71,33 @@ pub fn HomePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-        {move || {
-        {if pending() {
-            view!{<div class="loader"></div>}.into_view()
-        } else{
-            let session_id = session_value();
-            view! {
-                <A href={
-                    match session_value(){
-                        Some(session_result) => {
-                            match session_result {
-                                Ok(session_id) => format!("/providers/{}", session_id),
-                                Err(_) => String::from("/")
-                            }
-                        },
-                        None => String::from("/")
-                    }
-                } class="btn btn-primary" >"Get Started"</A>
-            }.into_view()
-        }}}}
+            {move || {
+                {
+                    if pending() {
+                        view! { <div class="loader"></div> }.into_view()
+                    } else {
+                        let session_id = session_value();
+                        view! {
+                            <A
+                                href=match session_value() {
+                                    Some(session_result) => {
+                                        match session_result {
+                                            Ok(session_id) => format!("/providers/{}", session_id),
+                                            Err(_) => String::from("/"),
+                                        }
+                                    }
+                                    None => String::from("/"),
+                                }
 
+                                class="btn btn-primary"
+                            >
+                                "Get Started"
+                            </A>
+                        }
+                            .into_view()
+                    }
+                }
+            }}
 
         </div>
     }
@@ -94,6 +106,8 @@ pub fn HomePage() -> impl IntoView {
 #[component]
 pub fn GridPage<T: CardData + Clone + 'static>(
     resource: Resource<(), Result<Vec<T>, ServerFnError>>,
+    selected_data: ReadSignal<Vec<i32>>,
+    set_selected_data: WriteSignal<Vec<i32>>,
 ) -> impl IntoView {
     let loading = resource.loading();
     view! {
@@ -110,9 +124,8 @@ pub fn GridPage<T: CardData + Clone + 'static>(
                     None => {
                         {
                             view! {
-                                <Grid>
-                                    <LoadingCards/>
-                                </Grid>
+                                <h1>"There was an error loading the page"</h1>
+                                <A href="/">"Home"</A>
                             }
                         }
                             .into_view()
@@ -121,7 +134,11 @@ pub fn GridPage<T: CardData + Clone + 'static>(
                         {
                             view! {
                                 <Grid>
-                                    <Card card_data=data.expect("whoopsie")/>
+                                    <Card
+                                        card_data=data.expect("whoopsie")
+                                        selected_data=selected_data
+                                        set_select_data=set_selected_data
+                                    />
                                 </Grid>
                             }
                         }
@@ -134,14 +151,21 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 }
 
 #[component]
-pub fn DecadePage() -> impl IntoView {
-    let decades = create_resource(|| (), |_| async move { fetch_decades().await });
+pub fn TestComponent() -> impl IntoView {
+    view! { <p>"Testing"</p> }
+}
+
+#[component]
+pub fn GenrePage() -> impl IntoView {
+    let genres = create_resource(|| (), |_| async move { fetch_genres().await });
     let params = use_params_map();
     let session_id = move || {
         params
             .with(|params| params.get("session_id").cloned())
             .expect("Oh noooo")
     };
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+    // <GridPage resource=genres />
     view! {
         <div
             style:position="absolute"
@@ -150,8 +174,42 @@ pub fn DecadePage() -> impl IntoView {
             style:transform="translate(-20%, -25%)"
         >
             <h1>{session_id}</h1>
-            <GridPage resource=decades />
+            <GridPage
+                resource=genres
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
 
+        </div>
+    }
+}
+
+#[component]
+pub fn DecadePage() -> impl IntoView {
+    let decades = create_resource(|| (), |_| async move { fetch_decades().await });
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+    view! {
+        <div
+            style:position="absolute"
+            style:left="30%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+            <h1>{session_id}</h1>
+            <GridPage
+                resource=decades
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
+            <A href=format!("/genres/{}", session_id()) class="btn btn-primary">
+                "To Genres"
+            </A>
         </div>
     }
 }
@@ -162,12 +220,14 @@ pub fn ProviderPage() -> impl IntoView {
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
+    let post_providers = create_server_action::<PostProviders>();
     let params = use_params_map();
     let session_id = move || {
         params
             .with(|params| params.get("session_id").cloned())
             .expect("Oh noooo")
     };
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     view! {
         <div
             style:position="absolute"
@@ -176,15 +236,31 @@ pub fn ProviderPage() -> impl IntoView {
             style:transform="translate(-20%, -25%)"
         >
             <h1>{session_id}</h1>
-            <GridPage resource=watch_providers />
-            <A href={format!("/runtime/{}", session_id())} class="btn btn-primary" >"To Runtime"</A>
+            <GridPage
+                resource=watch_providers
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
+            <A
+                href=format!("/runtime/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    post_providers
+                        .dispatch(PostProviders {
+                            session_id: session_id(),
+                            providers: selected_data.get(),
+                        });
+                }
+            >
+                "To Runtime"
+            </A>
         </div>
     }
 }
 
 #[component]
 pub fn MoviePage() -> impl IntoView {
-    let recommendations = create_resource(|| (), |_| async move { get_movies().await });
+    //let recommendations = create_resource(|| (), |_| async move { get_movies().await });
     let session_resource =
         use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
     let loading = session_resource.loading();
@@ -284,7 +360,9 @@ fn RuntimePage() -> impl IntoView {
                 </div>
             </div>
             <h1>{runtime}</h1>
-            <A href={format!("/decades/{}", session_id())} class="btn btn-primary" >"To Decades"</A>
+            <A href=format!("/decades/{}", session_id()) class="btn btn-primary">
+                "To Decades"
+            </A>
         </div>
     }
 }
@@ -326,8 +404,12 @@ fn LoadingCards() -> impl IntoView {
 }
 
 #[component]
-fn Card<T: CardData + Clone + 'static>(#[prop(into)] card_data: Vec<T>) -> impl IntoView {
-    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+fn Card<T: CardData + Clone + 'static>(
+    #[prop(into)] card_data: Vec<T>,
+    selected_data: ReadSignal<Vec<i32>>,
+    set_select_data: WriteSignal<Vec<i32>>,
+) -> impl IntoView {
+    //let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     view! {
         {card_data
             .into_iter()
@@ -372,16 +454,13 @@ fn Card<T: CardData + Clone + 'static>(#[prop(into)] card_data: Vec<T>) -> impl 
                             <div class="card-header" style:height="auto">
                                 <h5 class="card-title">{data.get_display()}</h5>
                             </div>
-                            <Show
-                                when={
-                                    let has_body = data.has_body();
-                                    move || { has_body }
+                            {move || {
+                                if data.has_body() {
+                                    view! { data.get_body() }.into_view()
+                                } else {
+                                    view! {}.into_view()
                                 }
-
-                                fallback=|| view! {}
-                            >
-                                <div class="card-body">{data.get_body()}</div>
-                            </Show>
+                            }}
 
                         </div>
                     </div>

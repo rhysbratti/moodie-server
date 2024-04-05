@@ -215,11 +215,7 @@ cfg_if! {
                         name: "Adventure".to_string(),
                     },
                 ]),
-                watch_providers: Some(vec![WatchProvider {
-                    logo_path: "/".to_string(),
-                    provider_id: 8,
-                    provider_name: "Netflix".to_string(),
-                }]),
+                watch_providers: Some(vec![8]),
                 runtime: Some(Runtime::from_string("Average")),
                 decade: Some(Decade::from_string("Recent")),
                 feedback: None,
