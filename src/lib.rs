@@ -1,5 +1,6 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 pub mod app;
+pub mod components;
 pub use app::*;
 #[cfg(feature = "ssr")]
 pub mod redis_helper;

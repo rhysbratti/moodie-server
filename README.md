@@ -1,72 +1,13 @@
-<picture>
-    <source srcset="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_Solid_White.svg" media="(prefers-color-scheme: dark)">
-    <img src="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_RGB.svg" alt="Leptos Logo">
-</picture>
 
-# Leptos Starter Template
+# Moodie<br>A movie recommendation engine
 
-This is a template for use with the [Leptos](https://github.com/leptos-rs/leptos) web framework and the [cargo-leptos](https://github.com/akesson/cargo-leptos) tool.
+### Powered by the TMDB API<br> Written in Rust with the Leptos + Actix Web libraries
 
-## Creating your template repo
+---
+This is a personal project of mine I started as a way to get to know Rust with practical hands-on experience.
 
-If you don't have `cargo-leptos` installed you can install it with
+This project started as a simple CLI application before being upgraded to a web service - original repo can be found [here](https://github.com/rhysbratti/movie_recommendation)
 
-`cargo install cargo-leptos`
+After settling on Leptos for the front-end, "Moodie" is now a full stack application written in pure Rust. Leveraging the TMDB API, it makes movie recommendations based on user-provided criteria such as streaming services, genre, movie length, and more.
 
-Then run
-
-`cargo leptos new --git leptos-rs/start`
-
-to generate a new project template (you will be prompted to enter a project name).
-
-`cd {projectname}`
-
-to go to your newly created project.
-
-Of course, you should explore around the project structure, but the best place to start with your application code is in `src/app.rs`.
-
-## Running your project
-
-`cargo leptos watch`  
-By default, you can access your local project at `http://localhost:3000`
-
-## Installing Additional Tools
-
-By default, `cargo-leptos` uses `nightly` Rust, `cargo-generate`, and `sass`. If you run into any trouble, you may need to install one or more of these tools.
-
-1. `rustup toolchain install nightly --allow-downgrade` - make sure you have Rust nightly
-2. `rustup target add wasm32-unknown-unknown` - add the ability to compile Rust to WebAssembly
-3. `cargo install cargo-generate` - install `cargo-generate` binary (should be installed automatically in future)
-4. `npm install -g sass` - install `dart-sass` (should be optional in future)
-
-## Executing a Server on a Remote Machine Without the Toolchain
-After running a `cargo leptos build --release` the minimum files needed are:
-
-1. The server binary located in `target/server/release`
-2. The `site` directory and all files within located in `target/site`
-
-Copy these files to your remote server. The directory structure should be:
-```text
-leptos_start
-site/
-```
-Set the following environment variables (updating for your project as needed):
-```sh
-export LEPTOS_OUTPUT_NAME="leptos_start"
-export LEPTOS_SITE_ROOT="site"
-export LEPTOS_SITE_PKG_DIR="pkg"
-export LEPTOS_SITE_ADDR="127.0.0.1:3000"
-export LEPTOS_RELOAD_PORT="3001"
-```
-Finally, run the server binary.
-
-## Notes about CSR and Trunk:
-Although it is not recommended, you can also run your project without server integration using the feature `csr` and `trunk serve`:
-
-`trunk serve --open --features csr`
-
-This may be useful for integrating external tools which require a static site, e.g. `tauri`.
-
-## Licensing
-
-This template itself is released under the Unlicense. You should replace the LICENSE for your own application with an appropriate license if you plan to release it publicly.
+This project is still in very active development! I expect this project to evolve as I get more comfortable with Rust & Leptos
