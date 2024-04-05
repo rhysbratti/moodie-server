@@ -134,21 +134,21 @@ cfg_if! {
 
         pub async fn get_recommendations(
             &self,
-            genres: Vec<Genre>,
-            watch_providers: Vec<WatchProvider>,
+            genres: Vec<i32>,
+            watch_providers: Vec<i32>,
             runtime: Runtime,
             decade: Decade,
             feedback: Option<Feedback>,
         ) -> Result<GetRecommendationsResponse, Box<dyn std::error::Error>> {
             let genre_ids: String = genres
                 .iter()
-                .map(|g| g.id.to_string())
+                .map(|g| g.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
 
             let provider_ids: String = watch_providers
                 .iter()
-                .map(|p| p.provider_id.to_string())
+                .map(|p| p.to_string())
                 .collect::<Vec<_>>()
                 .join("|");
 
@@ -473,28 +473,8 @@ cfg_if! {
 
         #[tokio::test]
         async fn test_get_recommendations() {
-            let genres = vec![
-                Genre {
-                    id: 28,
-                    name: "Action".to_string(),
-                },
-                Genre {
-                    id: 12,
-                    name: "Adventure".to_string(),
-                },
-            ];
-            let watch_providers = vec![
-                WatchProvider {
-                    logo_path: "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg".to_string(),
-                    provider_name: "Netflix".to_string(),
-                    provider_id: 8,
-                },
-                WatchProvider {
-                    logo_path: "/7YPdUs60C9qQQQfOFCgxpnF07D9.jpg".to_string(),
-                    provider_name: "Disney Plus".to_string(),
-                    provider_id: 337,
-                },
-            ];
+            let genres = vec![28,12];
+            let watch_providers = vec![8,337];
 
             let runtime = Runtime::Average;
 

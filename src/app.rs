@@ -1,11 +1,12 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::sync::Arc;
 
-use leptos::{server_fn::redirect, svg::view, *};
+use leptos::{html::s, server_fn::redirect, svg::view, *};
 
 use leptos_meta::*;
 use leptos_router::*;
 use log::{info, Level};
+use serde::de;
 use tracing::error;
 
 use crate::*;
@@ -14,9 +15,9 @@ use crate::*;
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    let (session_id, set_session_id) = create_signal(String::from(""));
+    //let (session_id, set_session_id) = create_signal(String::from(""));
 
-    provide_context(session_id);
+    //provide_context(session_id);
 
     view! {
         <Stylesheet id="leptos" href="/pkg/moodie_server.css"/>
@@ -33,11 +34,20 @@ pub fn App() -> impl IntoView {
                 <nav></nav>
                 <main>
                     <Routes>
-                        <Route path="/" view={move || view! { <HomePage set_session_id=set_session_id />}} />
-                        <Route path="/providers" view=ProviderPage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/decades" view=DecadePage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/runtime" view=RuntimePage/>
-                        <Route path="/movies" view=MoviePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/" view=HomePage/>
+                        <Route
+                            path="/providers/:session_id"
+                            view=ProviderPage
+                            ssr=SsrMode::OutOfOrder
+                        />
+                        <Route path="/decade/:session_id" view=DecadePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/runtime/:session_id" view=RuntimePage/>
+                        <Route path="/genres/:session_id" view=GenrePage ssr=SsrMode::OutOfOrder/>
+                        <Route
+                            path="/recommend/:session_id"
+                            view=RecommendationPage
+                            ssr=SsrMode::OutOfOrder
+                        />
                         <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                     </Routes>
                 </main>
@@ -48,14 +58,16 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-pub fn HomePage(set_session_id: WriteSignal<String>) -> impl IntoView {
-    //let start_session = create_server_action::<StartSession>();
+pub fn HomePage() -> impl IntoView {
     let start_session = create_server_action::<StartSession>();
 
     let pending = start_session.pending();
-    let session_id = start_session.value();
+    let session_value = start_session.value();
+    let version = start_session.version();
 
-    start_session.dispatch(StartSession {});
+    if version.get() == 0 {
+        start_session.dispatch(StartSession {});
+    }
 
     view! {
         <div
@@ -64,23 +76,33 @@ pub fn HomePage(set_session_id: WriteSignal<String>) -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-        {move || {if pending() {
-            view!{<div class="loader"></div>}.into_view()
-        } else{
-            match session_id() {
-                Some(result) => {
-                    match result {
-                        Ok(id) => set_session_id(id),
-                        Err(_) => {}
-                    }
-                },
-                None => {}
-            };
-            view! {
-                <A href="/providers" class="btn btn-primary" >"Get Started"</A>
-            }.into_view()
-        }}}
+            {move || {
+                {
+                    if pending() {
+                        view! { <div class="loader"></div> }.into_view()
+                    } else {
+                        let session_id = session_value();
+                        view! {
+                            <A
+                                href=match session_value() {
+                                    Some(session_result) => {
+                                        match session_result {
+                                            Ok(session_id) => format!("/providers/{}", session_id),
+                                            Err(_) => String::from("/"),
+                                        }
+                                    }
+                                    None => String::from("/"),
+                                }
 
+                                class="btn btn-primary"
+                            >
+                                "Get Started"
+                            </A>
+                        }
+                            .into_view()
+                    }
+                }
+            }}
 
         </div>
     }
@@ -89,6 +111,8 @@ pub fn HomePage(set_session_id: WriteSignal<String>) -> impl IntoView {
 #[component]
 pub fn GridPage<T: CardData + Clone + 'static>(
     resource: Resource<(), Result<Vec<T>, ServerFnError>>,
+    selected_data: ReadSignal<Vec<i32>>,
+    set_selected_data: WriteSignal<Vec<i32>>,
 ) -> impl IntoView {
     let loading = resource.loading();
     view! {
@@ -105,9 +129,8 @@ pub fn GridPage<T: CardData + Clone + 'static>(
                     None => {
                         {
                             view! {
-                                <Grid>
-                                    <LoadingCards/>
-                                </Grid>
+                                <h1>"There was an error loading the page"</h1>
+                                <A href="/">"Home"</A>
                             }
                         }
                             .into_view()
@@ -116,7 +139,11 @@ pub fn GridPage<T: CardData + Clone + 'static>(
                         {
                             view! {
                                 <Grid>
-                                    <Card card_data=data.expect("whoopsie")/>
+                                    <Card
+                                        card_data=data.expect("whoopsie")
+                                        selected_data=selected_data
+                                        set_select_data=set_selected_data
+                                    />
                                 </Grid>
                             }
                         }
@@ -129,9 +156,22 @@ pub fn GridPage<T: CardData + Clone + 'static>(
 }
 
 #[component]
-pub fn DecadePage() -> impl IntoView {
-    let decades = create_resource(|| (), |_| async move { fetch_decades().await });
-    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+pub fn TestComponent() -> impl IntoView {
+    view! { <p>"Testing"</p> }
+}
+
+#[component]
+pub fn GenrePage() -> impl IntoView {
+    let genres = create_resource(|| (), |_| async move { fetch_genres().await });
+    let post_genres = create_server_action::<PostGenres>();
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+    // <GridPage resource=genres />
     view! {
         <div
             style:position="absolute"
@@ -139,12 +179,146 @@ pub fn DecadePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{move || format!("{:#?}", session_id.get()) }</h1>
-            <GridPage resource=decades />
+            <h1>{session_id}</h1>
+            <GridPage
+                resource=genres
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
+            <A
+                href=format!("/recommend/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    post_genres
+                        .dispatch(PostGenres {
+                            session_id: session_id(),
+                            genres: selected_data.get(),
+                        });
+                }
+            >
+
+                "To Movies"
+            </A>
 
         </div>
     }
 }
+
+#[component]
+pub fn DecadePage() -> impl IntoView {
+    let (decade, set_decade) = create_signal(1);
+    let post_decade = create_server_action::<PostDecade>();
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    view! {
+        <div
+            style:position="absolute"
+            style:left="40%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+            <div style:display="flex" style:alignItems="center" style:justifyContent="center">
+                <div style:width="700px">
+                    <input
+                        type="range"
+                        min=1
+                        max=9
+                        step=1
+                        bind:value=decade
+                        style:width="90%"
+                        on:input=move |e| {
+                            match event_target_value(&e).parse() {
+                                Ok(target_value) => set_decade(target_value),
+                                Err(err) => error!("{}", err),
+                            }
+                        }
+                    />
+
+                    <div
+                        style:display="flex"
+                        style:justifyContent="space-between"
+                        style:position="absolute"
+                        style:bottom="calc(100% + 10px)"
+                        style:left="0"
+                        style:right="0"
+                        style:marginTop="10px"
+                    >
+                        <span style:width="11%">Classics</span>
+                        <span style:width="11%">50s</span>
+                        <span style:width="11%">60s</span>
+                        <span style:width="11%">70s</span>
+                        <span style:width="11%">80s</span>
+                        <span style:width="11%">90s</span>
+                        <span style:width="11%">2000s</span>
+                        <span style:width="11%">2010s</span>
+                        <span style:width="11%">Recent</span>
+                    </div>
+                </div>
+            </div>
+            <A
+                href=format!("/genres/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    let selected_decade = match decade.get() {
+                        1 => Decade::Classic,
+                        2 => Decade::Fifties,
+                        3 => Decade::Sixties,
+                        4 => Decade::Seventies,
+                        5 => Decade::Eighties,
+                        6 => Decade::Nineties,
+                        7 => Decade::TwoThousands,
+                        8 => Decade::TwentyTens,
+                        _ => Decade::Recent,
+                    };
+                    post_decade
+                        .dispatch(PostDecade {
+                            session_id: session_id(),
+                            decade: selected_decade,
+                        });
+                }
+            >
+
+                "To Runtime"
+            </A>
+        </div>
+    }
+}
+
+/*
+#[component]
+pub fn DecadePage() -> impl IntoView {
+    let decades = create_resource(|| (), |_| async move { fetch_decades().await });
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+    view! {
+        <div
+            style:position="absolute"
+            style:left="30%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+            <h1>{session_id}</h1>
+            <GridPage
+                resource=decades
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
+            <A href=format!("/genres/{}", session_id()) class="btn btn-primary">
+                "To Genres"
+            </A>
+        </div>
+    }
+}
+*/
 
 #[component]
 pub fn ProviderPage() -> impl IntoView {
@@ -152,7 +326,14 @@ pub fn ProviderPage() -> impl IntoView {
         || (),
         |_| async move { fetch_simple_watch_providers().await },
     );
-    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    let post_providers = create_server_action::<PostProviders>();
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     view! {
         <div
             style:position="absolute"
@@ -160,19 +341,42 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{move || format!("{:#?}", session_id.get()) }</h1>
-            <GridPage resource=watch_providers />
-            <A href="/runtime" class="btn btn-primary" >"To Runtime"</A>
+            <GridPage
+                resource=watch_providers
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
+            <A
+                href=format!("/runtime/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    post_providers
+                        .dispatch(PostProviders {
+                            session_id: session_id(),
+                            providers: selected_data.get(),
+                        });
+                }
+            >
+
+                "To Runtime"
+            </A>
         </div>
     }
 }
 
 #[component]
-pub fn MoviePage() -> impl IntoView {
-    let recommendations = create_resource(|| (), |_| async move { get_movies().await });
-    let session_resource =
-        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
-    let loading = session_resource.loading();
+pub fn RecommendationPage() -> impl IntoView {
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    let recommendations = create_resource(
+        || (),
+        move |_| async move { fetch_recommendations(session_id()).await },
+    );
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     view! {
         <div
             style:position="absolute"
@@ -180,18 +384,11 @@ pub fn MoviePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{move || println!("{:#?}", loading())}</h1>
-            {if loading() {
-                view! { <div class="loader"></div> }.into_view()
-            } else {
-                view! {
-                    {match session_resource.get() {
-                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
-                        None => view! {}.into_view(),
-                    }}
-                }
-                    .into_view()
-            }}
+            <GridPage
+                resource=recommendations
+                selected_data=selected_data
+                set_selected_data=set_select_data
+            />
 
         </div>
     }
@@ -220,7 +417,13 @@ fn NotFound() -> impl IntoView {
 #[component]
 fn RuntimePage() -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
-    let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    let post_runtime = create_server_action::<PostRuntime>();
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
     view! {
         <div
             style:position="absolute"
@@ -262,7 +465,27 @@ fn RuntimePage() -> impl IntoView {
                 </div>
             </div>
             <h1>{runtime}</h1>
-            <A href="/decades" class="btn btn-primary" >"To Decades"</A>
+            <A
+                href=format!("/decade/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    let selected_runtime = match runtime.get() {
+                        1 => Runtime::Quick,
+                        2 => Runtime::Average,
+                        3 => Runtime::MovieNight,
+                        4 => Runtime::MartinScorsese,
+                        _ => Runtime::Average,
+                    };
+                    post_runtime
+                        .dispatch(PostRuntime {
+                            session_id: session_id(),
+                            runtime: selected_runtime,
+                        });
+                }
+            >
+
+                "To Runtime"
+            </A>
         </div>
     }
 }
@@ -304,8 +527,12 @@ fn LoadingCards() -> impl IntoView {
 }
 
 #[component]
-fn Card<T: CardData + Clone + 'static>(#[prop(into)] card_data: Vec<T>) -> impl IntoView {
-    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+fn Card<T: CardData + Clone + 'static>(
+    #[prop(into)] card_data: Vec<T>,
+    selected_data: ReadSignal<Vec<i32>>,
+    set_select_data: WriteSignal<Vec<i32>>,
+) -> impl IntoView {
+    //let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     view! {
         {card_data
             .into_iter()
@@ -350,16 +577,14 @@ fn Card<T: CardData + Clone + 'static>(#[prop(into)] card_data: Vec<T>) -> impl 
                             <div class="card-header" style:height="auto">
                                 <h5 class="card-title">{data.get_display()}</h5>
                             </div>
-                            <Show
-                                when={
-                                    let has_body = data.has_body();
-                                    move || { has_body }
+                            {move || {
+                                if data.has_body() {
+                                    view! { <div class="card-body">{data.get_body()}</div> }
+                                        .into_view()
+                                } else {
+                                    view! {}.into_view()
                                 }
-
-                                fallback=|| view! {}
-                            >
-                                <div class="card-body">{data.get_body()}</div>
-                            </Show>
+                            }}
 
                         </div>
                     </div>

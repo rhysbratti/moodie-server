@@ -1,4 +1,5 @@
 use leptos::{server_fn::redirect, svg::view, *};
+use serde::de;
 use std::sync::Arc;
 
 use crate::*;
@@ -85,11 +86,9 @@ pub async fn fetch_simple_watch_providers() -> Result<Vec<WatchProvider>, Server
     }
 }
 
-#[server(PostDecades, "/api")]
-pub async fn post_decades(session_id: String, decade: DecadeResponse) -> Result<(), ServerFnError> {
+#[server(PostDecade, "/api")]
+pub async fn post_decades(session_id: String, decade: Decade) -> Result<(), ServerFnError> {
     let id = session_id.clone();
-
-    let decade = Decade::from_string(&decade.decade);
 
     match redis_helper::criteria_from_cache(&session_id).await {
         Err(err) => Err(ServerFnError::new(format!(
@@ -117,10 +116,7 @@ pub async fn post_decades(session_id: String, decade: DecadeResponse) -> Result<
 }
 
 #[server(PostProviders, "/api")]
-pub async fn post_providers(
-    session_id: String,
-    providers: Vec<WatchProvider>,
-) -> Result<(), ServerFnError> {
+pub async fn post_providers(session_id: String, providers: Vec<i32>) -> Result<(), ServerFnError> {
     let id = session_id.clone();
 
     match redis_helper::criteria_from_cache(&session_id).await {
@@ -149,7 +145,7 @@ pub async fn post_providers(
 }
 
 #[server(PostGenres, "/api")]
-pub async fn post_genres(session_id: String, genres: Vec<Genre>) -> Result<(), ServerFnError> {
+pub async fn post_genres(session_id: String, genres: Vec<i32>) -> Result<(), ServerFnError> {
     let id = session_id.clone();
 
     match redis_helper::criteria_from_cache(&session_id).await {
@@ -178,10 +174,7 @@ pub async fn post_genres(session_id: String, genres: Vec<Genre>) -> Result<(), S
 }
 
 #[server(PostRuntime, "/api")]
-pub async fn post_runtime(
-    session_id: String,
-    runtime: RuntimeResponse,
-) -> Result<(), ServerFnError> {
+pub async fn post_runtime(session_id: String, runtime: Runtime) -> Result<(), ServerFnError> {
     let id = session_id.clone();
     println!("Received a runtime: {:#?}", runtime);
 
@@ -191,7 +184,7 @@ pub async fn post_runtime(
             err
         ))),
         Ok(mut criteria) => {
-            criteria.runtime = Some(runtime.runtime);
+            criteria.runtime = Some(runtime);
 
             match redis_helper::criteria_to_cache(&session_id, criteria).await {
                 Ok(redis_response) => {
@@ -353,23 +346,28 @@ pub async fn start_session() -> Result<String, ServerFnError> {
     // pull ResponseOptions from context
     let response = expect_context::<leptos_actix::ResponseOptions>();
 
-    match redis_helper::start_recommendation_session().await {
-        Err(err) => Err(ServerFnError::new(format!(
-            "Error creating session ID: {}",
-            err
-        ))),
-        Ok(session_id) => {
-            println!("Session: {}", &session_id);
-            response.append_header(
-                header::SET_COOKIE,
-                HeaderValue::from_str(&format!(
-                    "SESSION_ID={session_id};\
-                     Path=/"
-                ))
-                .expect("to create header value"),
-            );
-            Ok(session_id)
-        }
+    let existing_cookie = get_session().await;
+
+    match existing_cookie {
+        Ok(existing_session_id) => Ok(existing_session_id),
+        Err(_) => match redis_helper::start_recommendation_session().await {
+            Err(err) => Err(ServerFnError::new(format!(
+                "Error creating session ID: {}",
+                err
+            ))),
+            Ok(session_id) => {
+                println!("Session: {}", &session_id);
+                response.append_header(
+                    header::SET_COOKIE,
+                    HeaderValue::from_str(&format!(
+                        "SESSION_ID={session_id};\
+                             Path=/"
+                    ))
+                    .expect("to create header value"),
+                );
+                Ok(session_id)
+            }
+        },
     }
 }
 

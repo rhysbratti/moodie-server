@@ -37,8 +37,8 @@ pub fn hydrate() {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct RecommendationCriteria {
-    pub genres: Option<Vec<Genre>>,
-    pub watch_providers: Option<Vec<WatchProvider>>,
+    pub genres: Option<Vec<i32>>,
+    pub watch_providers: Option<Vec<i32>>,
     pub runtime: Option<Runtime>,
     pub decade: Option<Decade>,
     pub feedback: Option<Feedback>,
@@ -297,6 +297,28 @@ pub struct MovieRecommendation {
     pub providers: Vec<WatchProvider>,
 }
 
+impl CardData for Genre {
+    fn get_id(&self) -> i32 {
+        self.id
+    }
+
+    fn get_display(&self) -> String {
+        self.name.clone()
+    }
+
+    fn get_body(&self) -> impl IntoView {
+        view! {}
+    }
+
+    fn get_logo_path(&self) -> String {
+        String::from("")
+    }
+
+    fn has_body(&self) -> bool {
+        false
+    }
+}
+
 impl CardData for MovieRecommendation {
     fn get_id(&self) -> i32 {
         self.movie.id as i32
@@ -404,182 +426,8 @@ impl CardData for Decade {
     }
 
     fn get_logo_path(&self) -> String {
-        String::from("/")
+        String::from("")
     }
-}
-
-pub async fn get_decades() -> Vec<Decade> {
-    vec![
-        Decade::Classic,
-        Decade::Fifties,
-        Decade::Sixties,
-        Decade::Seventies,
-        Decade::Eighties,
-        Decade::Nineties,
-        Decade::TwoThousands,
-        Decade::TwentyTens,
-        Decade::Recent,
-    ]
-}
-
-pub async fn get_movies() -> Vec<MovieRecommendation> {
-    vec![
-        MovieRecommendation {
-            movie: Movie {
-                id: 140300,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/oajNi4Su39WAByHI6EONu8G8HYn.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Kung Fu Panda 3"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 383498,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/to0spRl1CMDvyUbOnbb4fTk3VAd.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Deadpool 2"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 293660,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/fSRb7vyIP8rQpL0I47P3qUsEKX3.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Deadpool"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 177572,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/2mxS4wUimwlLmI1xp6QW6NSU361.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Big Hero 6"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 10138,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/6WBeq4fCfn7AN0o21W9qNcRF2l9.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Iron Man 2"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 260513,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/9lFKBtaVIhP7E2Pk0IY1CwTKTMZ.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Incredibles 2"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 246655,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/2mtQwJKVKQrZgTz49Dizb25eOQQ.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("X-Men: Apocalypse"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 141052,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/eifGNCSDuxJeS1loAXil5bIGgvC.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Justice League"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 396535,
-                overview: String::from("Example"),
-                poster_path: Some(String::from("/vNVFt6dtcqnI7hqa6LFBUibuFiw.jpg")),
-                release_date: String::from("2016-01-23"),
-                title: String::from("Train to Busan"),
-            },
-            providers: get_watch_providers().await,
-        },
-        MovieRecommendation {
-            movie: Movie {
-                id: 76338,
-                overview: String::from("Example"),
-                poster_path: None,
-                release_date: String::from("2016-01-23"),
-                title: String::from("Thor: The Dark World"),
-            },
-            providers: get_watch_providers().await,
-        },
-    ]
-}
-
-pub async fn get_watch_providers() -> Vec<WatchProvider> {
-    vec![
-        WatchProvider {
-            provider_id: 8,
-            provider_name: "Netflix".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 13,
-            provider_name: "Hulu".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 15,
-            provider_name: "Apple TV".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 16,
-            provider_name: "Peacock".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 17,
-            provider_name: "Amazon Prime Video".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 18,
-            provider_name: "Max".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 19,
-            provider_name: "Disney Plus".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 20,
-            provider_name: "Tubi".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 21,
-            provider_name: "Crunchyroll".to_string(),
-            logo_path: "/".to_string(),
-        },
-        WatchProvider {
-            provider_id: 22,
-            provider_name: "Paramount Plus".to_string(),
-            logo_path: "/".to_string(),
-        },
-    ]
 }
 
 pub trait AddOrRemove<T> {
