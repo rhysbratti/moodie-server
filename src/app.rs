@@ -43,7 +43,11 @@ pub fn App() -> impl IntoView {
                         <Route path="/decade/:session_id" view=DecadePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/runtime/:session_id" view=RuntimePage/>
                         <Route path="/genres/:session_id" view=GenrePage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/recommend/:session_id" view=RecommendationPage ssr=SsrMode::OutOfOrder/>
+                        <Route
+                            path="/recommend/:session_id"
+                            view=RecommendationPage
+                            ssr=SsrMode::OutOfOrder
+                        />
                         <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                     </Routes>
                 </main>
@@ -192,6 +196,7 @@ pub fn GenrePage() -> impl IntoView {
                         });
                 }
             >
+
                 "To Movies"
             </A>
 
@@ -217,7 +222,7 @@ pub fn DecadePage() -> impl IntoView {
             style:transform="translate(-20%, -25%)"
         >
             <div style:display="flex" style:alignItems="center" style:justifyContent="center">
-                <div style:width="600px">
+                <div style:width="700px">
                     <input
                         type="range"
                         min=1
@@ -276,6 +281,7 @@ pub fn DecadePage() -> impl IntoView {
                         });
                 }
             >
+
                 "To Runtime"
             </A>
         </div>
@@ -351,6 +357,7 @@ pub fn ProviderPage() -> impl IntoView {
                         });
                 }
             >
+
                 "To Runtime"
             </A>
         </div>
@@ -378,9 +385,9 @@ pub fn RecommendationPage() -> impl IntoView {
             style:transform="translate(-20%, -25%)"
         >
             <GridPage
-            resource=recommendations
-            selected_data=selected_data
-            set_selected_data=set_select_data
+                resource=recommendations
+                selected_data=selected_data
+                set_selected_data=set_select_data
             />
 
         </div>
@@ -476,6 +483,7 @@ fn RuntimePage() -> impl IntoView {
                         });
                 }
             >
+
                 "To Runtime"
             </A>
         </div>
