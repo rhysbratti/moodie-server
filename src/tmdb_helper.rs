@@ -29,7 +29,7 @@ cfg_if! {
                 criteria.feedback,
             )
             .await?;
-        let mut index = 0;
+        let mut index = 1;
 
         let mut movie_recommendations = vec![];
 
@@ -205,16 +205,7 @@ cfg_if! {
 
         fn get_criteria() -> RecommendationCriteria {
             RecommendationCriteria {
-                genres: Some(vec![
-                    Genre {
-                        id: 28,
-                        name: "Action".to_string(),
-                    },
-                    Genre {
-                        id: 12,
-                        name: "Adventure".to_string(),
-                    },
-                ]),
+                genres: Some(vec![28,12]),
                 watch_providers: Some(vec![8]),
                 runtime: Some(Runtime::from_string("Average")),
                 decade: Some(Decade::from_string("Recent")),

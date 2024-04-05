@@ -37,7 +37,7 @@ pub fn hydrate() {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct RecommendationCriteria {
-    pub genres: Option<Vec<Genre>>,
+    pub genres: Option<Vec<i32>>,
     pub watch_providers: Option<Vec<i32>>,
     pub runtime: Option<Runtime>,
     pub decade: Option<Decade>,

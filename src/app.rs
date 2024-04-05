@@ -6,6 +6,7 @@ use leptos::{html::s, server_fn::redirect, svg::view, *};
 use leptos_meta::*;
 use leptos_router::*;
 use log::{info, Level};
+use serde::de;
 use tracing::error;
 
 use crate::*;
@@ -39,10 +40,10 @@ pub fn App() -> impl IntoView {
                             view=ProviderPage
                             ssr=SsrMode::OutOfOrder
                         />
-                        <Route path="/decades/:session_id" view=DecadePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/decade/:session_id" view=DecadePage ssr=SsrMode::OutOfOrder/>
                         <Route path="/runtime/:session_id" view=RuntimePage/>
                         <Route path="/genres/:session_id" view=GenrePage ssr=SsrMode::OutOfOrder/>
-                        <Route path="/movies/:session_id" view=MoviePage ssr=SsrMode::OutOfOrder/>
+                        <Route path="/recommend/:session_id" view=RecommendationPage ssr=SsrMode::OutOfOrder/>
                         <Route path="/*any" view=|| view! { <h1>"Not Found"</h1> }/>
                     </Routes>
                 </main>
@@ -158,6 +159,7 @@ pub fn TestComponent() -> impl IntoView {
 #[component]
 pub fn GenrePage() -> impl IntoView {
     let genres = create_resource(|| (), |_| async move { fetch_genres().await });
+    let post_genres = create_server_action::<PostGenres>();
     let params = use_params_map();
     let session_id = move || {
         params
@@ -179,11 +181,108 @@ pub fn GenrePage() -> impl IntoView {
                 selected_data=selected_data
                 set_selected_data=set_select_data
             />
+            <A
+                href=format!("/recommend/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    post_genres
+                        .dispatch(PostGenres {
+                            session_id: session_id(),
+                            genres: selected_data.get(),
+                        });
+                }
+            >
+                "To Movies"
+            </A>
 
         </div>
     }
 }
 
+#[component]
+pub fn DecadePage() -> impl IntoView {
+    let (decade, set_decade) = create_signal(1);
+    let post_decade = create_server_action::<PostDecade>();
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    view! {
+        <div
+            style:position="absolute"
+            style:left="40%"
+            style:top="30%"
+            style:transform="translate(-20%, -25%)"
+        >
+            <div style:display="flex" style:alignItems="center" style:justifyContent="center">
+                <div style:width="600px">
+                    <input
+                        type="range"
+                        min=1
+                        max=9
+                        step=1
+                        bind:value=decade
+                        style:width="90%"
+                        on:input=move |e| {
+                            match event_target_value(&e).parse() {
+                                Ok(target_value) => set_decade(target_value),
+                                Err(err) => error!("{}", err),
+                            }
+                        }
+                    />
+
+                    <div
+                        style:display="flex"
+                        style:justifyContent="space-between"
+                        style:position="absolute"
+                        style:bottom="calc(100% + 10px)"
+                        style:left="0"
+                        style:right="0"
+                        style:marginTop="10px"
+                    >
+                        <span style:width="11%">Classics</span>
+                        <span style:width="11%">50s</span>
+                        <span style:width="11%">60s</span>
+                        <span style:width="11%">70s</span>
+                        <span style:width="11%">80s</span>
+                        <span style:width="11%">90s</span>
+                        <span style:width="11%">2000s</span>
+                        <span style:width="11%">2010s</span>
+                        <span style:width="11%">Recent</span>
+                    </div>
+                </div>
+            </div>
+            <A
+                href=format!("/genres/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    let selected_decade = match decade.get() {
+                        1 => Decade::Classic,
+                        2 => Decade::Fifties,
+                        3 => Decade::Sixties,
+                        4 => Decade::Seventies,
+                        5 => Decade::Eighties,
+                        6 => Decade::Nineties,
+                        7 => Decade::TwoThousands,
+                        8 => Decade::TwentyTens,
+                        _ => Decade::Recent,
+                    };
+                    post_decade
+                        .dispatch(PostDecade {
+                            session_id: session_id(),
+                            decade: selected_decade,
+                        });
+                }
+            >
+                "To Runtime"
+            </A>
+        </div>
+    }
+}
+
+/*
 #[component]
 pub fn DecadePage() -> impl IntoView {
     let decades = create_resource(|| (), |_| async move { fetch_decades().await });
@@ -213,6 +312,7 @@ pub fn DecadePage() -> impl IntoView {
         </div>
     }
 }
+*/
 
 #[component]
 pub fn ProviderPage() -> impl IntoView {
@@ -235,7 +335,6 @@ pub fn ProviderPage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{session_id}</h1>
             <GridPage
                 resource=watch_providers
                 selected_data=selected_data
@@ -259,11 +358,18 @@ pub fn ProviderPage() -> impl IntoView {
 }
 
 #[component]
-pub fn MoviePage() -> impl IntoView {
-    //let recommendations = create_resource(|| (), |_| async move { get_movies().await });
-    let session_resource =
-        use_context::<Resource<(), Result<String, ServerFnError>>>().expect("session resource");
-    let loading = session_resource.loading();
+pub fn RecommendationPage() -> impl IntoView {
+    let params = use_params_map();
+    let session_id = move || {
+        params
+            .with(|params| params.get("session_id").cloned())
+            .expect("Oh noooo")
+    };
+    let recommendations = create_resource(
+        || (),
+        move |_| async move { fetch_recommendations(session_id()).await },
+    );
+    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     view! {
         <div
             style:position="absolute"
@@ -271,18 +377,11 @@ pub fn MoviePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{move || println!("{:#?}", loading())}</h1>
-            {if loading() {
-                view! { <div class="loader"></div> }.into_view()
-            } else {
-                view! {
-                    {match session_resource.get() {
-                        Some(session_id) => view! { <h1>{session_id}</h1> }.into_view(),
-                        None => view! {}.into_view(),
-                    }}
-                }
-                    .into_view()
-            }}
+            <GridPage
+            resource=recommendations
+            selected_data=selected_data
+            set_selected_data=set_select_data
+            />
 
         </div>
     }
@@ -311,7 +410,7 @@ fn NotFound() -> impl IntoView {
 #[component]
 fn RuntimePage() -> impl IntoView {
     let (runtime, set_runtime) = create_signal(1);
-    //let session_id = use_context::<ReadSignal<String>>().expect("No session located");
+    let post_runtime = create_server_action::<PostRuntime>();
     let params = use_params_map();
     let session_id = move || {
         params
@@ -325,7 +424,6 @@ fn RuntimePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{session_id}</h1>
             <div style:display="flex" style:alignItems="center" style:justifyContent="center">
                 <div style:width="600px">
                     <input
@@ -360,8 +458,25 @@ fn RuntimePage() -> impl IntoView {
                 </div>
             </div>
             <h1>{runtime}</h1>
-            <A href=format!("/decades/{}", session_id()) class="btn btn-primary">
-                "To Decades"
+            <A
+                href=format!("/decade/{}", session_id())
+                class="btn btn-primary"
+                on:click=move |_| {
+                    let selected_runtime = match runtime.get() {
+                        1 => Runtime::Quick,
+                        2 => Runtime::Average,
+                        3 => Runtime::MovieNight,
+                        4 => Runtime::MartinScorsese,
+                        _ => Runtime::Average,
+                    };
+                    post_runtime
+                        .dispatch(PostRuntime {
+                            session_id: session_id(),
+                            runtime: selected_runtime,
+                        });
+                }
+            >
+                "To Runtime"
             </A>
         </div>
     }
@@ -456,7 +571,7 @@ fn Card<T: CardData + Clone + 'static>(
                             </div>
                             {move || {
                                 if data.has_body() {
-                                    view! { data.get_body() }.into_view()
+                                    view! { {data.get_body()} }.into_view()
                                 } else {
                                     view! {}.into_view()
                                 }

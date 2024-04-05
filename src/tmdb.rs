@@ -134,7 +134,7 @@ cfg_if! {
 
         pub async fn get_recommendations(
             &self,
-            genres: Vec<Genre>,
+            genres: Vec<i32>,
             watch_providers: Vec<i32>,
             runtime: Runtime,
             decade: Decade,
@@ -142,7 +142,7 @@ cfg_if! {
         ) -> Result<GetRecommendationsResponse, Box<dyn std::error::Error>> {
             let genre_ids: String = genres
                 .iter()
-                .map(|g| g.id.to_string())
+                .map(|g| g.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
 
@@ -473,16 +473,7 @@ cfg_if! {
 
         #[tokio::test]
         async fn test_get_recommendations() {
-            let genres = vec![
-                Genre {
-                    id: 28,
-                    name: "Action".to_string(),
-                },
-                Genre {
-                    id: 12,
-                    name: "Adventure".to_string(),
-                },
-            ];
+            let genres = vec![28,12];
             let watch_providers = vec![8,337];
 
             let runtime = Runtime::Average;
