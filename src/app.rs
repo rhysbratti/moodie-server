@@ -11,9 +11,27 @@ use tracing::error;
 use crate::components::pages::*;
 use crate::*;
 
+#[derive(Copy, Clone, Debug)]
+pub struct GlobalState {
+    pub data_loading: ReadSignal<bool>,
+}
+
+impl GlobalState {
+    pub fn new() -> Self {
+        let (data_loading, _) = create_signal(false);
+        Self { data_loading }
+    }
+
+    pub fn from(data_loading: ReadSignal<bool>) -> Self {
+        Self { data_loading }
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+
+    provide_context(GlobalState::new());
 
     view! {
         <Stylesheet id="leptos" href="/pkg/moodie_server.css"/>

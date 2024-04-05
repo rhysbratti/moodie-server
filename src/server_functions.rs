@@ -393,3 +393,9 @@ pub async fn get_session() -> Result<String, ServerFnError> {
         }
     }
 }
+
+#[server(TestOutput, "/api")]
+pub async fn test_output() -> Result<(), ServerFnError> {
+    println!("Test resource has been requested");
+    Ok(())
+}
