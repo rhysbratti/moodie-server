@@ -148,11 +148,16 @@ pub async fn post_providers(session_id: String, providers: Vec<i32>) -> Result<(
 pub async fn post_genres(session_id: String, genres: Vec<i32>) -> Result<(), ServerFnError> {
     let id = session_id.clone();
 
+    println!("Posting genres");
+
     match redis_helper::criteria_from_cache(&session_id).await {
-        Err(err) => Err(ServerFnError::new(format!(
-            "Error reading criteria from cache: {}",
-            err
-        ))),
+        Err(err) => {
+            println!("Error reading from cache");
+            Err(ServerFnError::new(format!(
+                "Error reading criteria from cache: {}",
+                err
+            )))
+        }
         Ok(mut criteria) => {
             criteria.genres = Some(genres);
 
@@ -164,10 +169,13 @@ pub async fn post_genres(session_id: String, genres: Vec<i32>) -> Result<(), Ser
 
                     Ok(())
                 }
-                Err(err) => Err(ServerFnError::new(format!(
-                    "Error writing genres to cache: {}",
-                    err
-                ))),
+                Err(err) => {
+                    println!("Error writing genres");
+                    Err(ServerFnError::new(format!(
+                        "Error writing genres to cache: {}",
+                        err
+                    )))
+                }
             }
         }
     }

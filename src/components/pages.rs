@@ -169,29 +169,35 @@ pub fn RuntimePage() -> impl IntoView {
                     </div>
                 </div>
             </div>
-            <h1>{runtime}</h1>
-            <A
-                href=format!("/decade/{}", session_id())
-                class="btn btn-primary"
-                on:click=move |_| {
-                    provide_context(global_state.data_loading = pending);
-                    let selected_runtime = match runtime.get() {
-                        1 => Runtime::Quick,
-                        2 => Runtime::Average,
-                        3 => Runtime::MovieNight,
-                        4 => Runtime::MartinScorsese,
-                        _ => Runtime::Average,
-                    };
-                    post_runtime
-                        .dispatch(PostRuntime {
-                            session_id: session_id(),
-                            runtime: selected_runtime,
-                        });
-                }
-            >
+            {move || if !global_state.data_loading.get() {
+                view! {
+                    <A
+                        href=format!("/decade/{}", session_id())
+                        class="btn btn-primary"
+                        on:click=move |_| {
+                            provide_context(global_state.data_loading = pending);
+                            let selected_runtime = match runtime.get() {
+                                1 => Runtime::Quick,
+                                2 => Runtime::Average,
+                                3 => Runtime::MovieNight,
+                                4 => Runtime::MartinScorsese,
+                                _ => Runtime::Average,
+                            };
+                            post_runtime
+                                .dispatch(PostRuntime {
+                                    session_id: session_id(),
+                                    runtime: selected_runtime,
+                                });
+                        }
+                    >
 
-                "To Runtime"
-            </A>
+                        "Next"
+                    </A>
+                }.into_view()
+            }else{
+                view! {}.into_view()
+            }}
+
         </div>
     }
 }
@@ -253,32 +259,39 @@ pub fn DecadePage() -> impl IntoView {
                     </div>
                 </div>
             </div>
-            <A
-                href=format!("/genres/{}", session_id())
-                class="btn btn-primary"
-                on:click=move |_| {
-                    provide_context(global_state.data_loading = pending);
-                    let selected_decade = match decade.get() {
-                        1 => Decade::Classic,
-                        2 => Decade::Fifties,
-                        3 => Decade::Sixties,
-                        4 => Decade::Seventies,
-                        5 => Decade::Eighties,
-                        6 => Decade::Nineties,
-                        7 => Decade::TwoThousands,
-                        8 => Decade::TwentyTens,
-                        _ => Decade::Recent,
-                    };
-                    post_decade
-                        .dispatch(PostDecade {
-                            session_id: session_id(),
-                            decade: selected_decade,
-                        });
-                }
-            >
+            {move || if !global_state.data_loading.get(){
+                view! {
+                    <A
+                        href=format!("/genres/{}", session_id())
+                        class="btn btn-primary"
+                        on:click=move |_| {
+                            provide_context(global_state.data_loading = pending);
+                            let selected_decade = match decade.get() {
+                                1 => Decade::Classic,
+                                2 => Decade::Fifties,
+                                3 => Decade::Sixties,
+                                4 => Decade::Seventies,
+                                5 => Decade::Eighties,
+                                6 => Decade::Nineties,
+                                7 => Decade::TwoThousands,
+                                8 => Decade::TwentyTens,
+                                _ => Decade::Recent,
+                            };
+                            post_decade
+                                .dispatch(PostDecade {
+                                    session_id: session_id(),
+                                    decade: selected_decade,
+                                });
+                        }
+                    >
 
-                "To Runtime"
-            </A>
+                        "Next"
+                    </A>
+                }.into_view()
+            }else{
+                view! {}.into_view()
+            }}
+
         </div>
     }
 }
@@ -310,21 +323,28 @@ pub fn GenrePage() -> impl IntoView {
                 selected_data=selected_data
                 set_selected_data=set_select_data
             />
-            <A
-                href=format!("/recommend/{}", session_id())
-                class="btn btn-primary"
-                on:click=move |_| {
-                    provide_context(global_state.data_loading = pending);
-                    post_genres
-                        .dispatch(PostGenres {
-                            session_id: session_id(),
-                            genres: selected_data.get(),
-                        });
-                }
-            >
+            {move || if !global_state.data_loading.get(){
+                view! {
+                    <A
+                        href=format!("/recommend/{}", session_id())
+                        class="btn btn-primary"
+                        on:click=move |_| {
+                            provide_context(global_state.data_loading = pending);
+                            post_genres
+                                .dispatch(PostGenres {
+                                    session_id: session_id(),
+                                    genres: selected_data.get(),
+                                });
+                        }
+                    >
 
-                "To Movies"
-            </A>
+                        "Get Recommendations"
+                    </A>
+                }.into_view()
+            }else{
+                view! {}.into_view()
+            }}
+
 
         </div>
     }

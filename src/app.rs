@@ -41,9 +41,10 @@ pub fn App() -> impl IntoView {
         />
 
         <Title text="Moodie"/>
-
+        <div class="banner">
+               <h1 class="banner-text">"Moodie"</h1>
+        </div>
         <body data-bs-theme="dark">
-
             <Router>
                 <nav></nav>
                 <main>
@@ -66,7 +67,6 @@ pub fn App() -> impl IntoView {
                     </Routes>
                 </main>
             </Router>
-
         </body>
     }
 }
