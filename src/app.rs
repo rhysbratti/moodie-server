@@ -579,7 +579,8 @@ fn Card<T: CardData + Clone + 'static>(
                             </div>
                             {move || {
                                 if data.has_body() {
-                                    view! { {data.get_body()} }.into_view()
+                                    view! { <div class="card-body">{data.get_body()}</div> }
+                                        .into_view()
                                 } else {
                                     view! {}.into_view()
                                 }
