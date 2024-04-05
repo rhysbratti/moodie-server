@@ -1,0 +1,45 @@
+name: Cargo Build & Test
+
+on:
+  push:
+  pull_request:
+
+env: 
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      redis-server:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping"
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: rec_temp
+          
+      - name: Create dir
+        run: |
+          mkdir rec_temp/config
+          
+      - name: Init API Key 
+        run: echo "${{ secrets.API_KEY }}" > rec_temp/config/api.key 
+        
+      - name: Build 
+        run: cargo build --verbose
+        working-directory: rec_temp
+
+        
+      - name: Test
+        run: cargo test --verbose --features ssr
+        working-directory: rec_temp
+
+      - name: Cleanup
+        run: |
+          rm -rf rec_temp/config
