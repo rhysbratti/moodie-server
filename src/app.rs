@@ -15,10 +15,6 @@ use crate::*;
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    //let (session_id, set_session_id) = create_signal(String::from(""));
-
-    //provide_context(session_id);
-
     view! {
         <Stylesheet id="leptos" href="/pkg/moodie_server.css"/>
         <Stylesheet
