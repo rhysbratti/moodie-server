@@ -27,10 +27,22 @@ cfg_if! {
     impl Tmdb {
         /* Constructor for building Tmdb object */
         pub fn new() -> Self {
-            let api_key: String = fs::read_to_string("config/api.key")
-                .expect("Unable to read API Key!")
-                .trim()
-                .to_string();
+            let api_key: String = match std::env::var("TMDB_API_KEY") {
+                Ok(api_key) => {
+                    println!("TMDB API key found...");
+                    api_key.trim().to_string()
+                }
+                Err(_) => {
+                    println!("TMDB API key env var not found. Reading from file...");
+                    match fs::read_to_string("config/api.key") {
+                        Ok(api_key) => {
+                            println!("API key read from file...");
+                            api_key.trim().to_string()
+                        },
+                        Err(error) => {panic!("Unable to read API key from file. No API key available!")},
+                    }
+                }
+            };
             let base_url: String = String::from("https://api.themoviedb.org/3");
             Self { api_key, base_url }
         }

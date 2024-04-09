@@ -12,9 +12,9 @@ cfg_if! {
 
     lazy_static! {
         static ref CONNECTION_STRING: String = match std::env::var("REDIS_CONNECTION_STRING") {
-            Ok(s) => {
+            Ok(con_string) => {
                 println!("Env connection string found...");
-                s
+                con_string
             }
             Err(e) => {
                 println!("Connection string not set. Defaulting...");
