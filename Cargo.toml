@@ -20,7 +20,7 @@ wasm-bindgen = "=0.2.92"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 reqwest = { version = "0.12.3", features = ["json"] }
-console_log = { version = "0.2", features = ["color"] }
+console_log = { version = "1.0", features = ["color"] }
 redis = { version="0.25.2", optional = true }
 tokio = { version = "1.36.0", features = ["full"], optional=true}
 uuid = { version = "1.7.0", features = ["v4"], optional=true }
