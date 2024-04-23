@@ -150,7 +150,7 @@ cfg_if! {
             watch_providers: Vec<i32>,
             runtime: Runtime,
             decade: Decade,
-            feedback: Option<Feedback>,
+            mut feedback: Option<Feedback>,
         ) -> Result<GetRecommendationsResponse, Box<dyn std::error::Error>> {
             let genre_ids: String = genres
                 .iter()
@@ -178,33 +178,27 @@ cfg_if! {
                 format!("with_watch_providers={}",provider_ids)
             );
 
-            match feedback {
-                Some(feedback) => {
-                    match feedback.like {
-                        Some(keywords) => url.push_str(&format!(
-                            "&with_keywords={}",
-                            keywords
-                                .iter()
-                                .map(|k| k.to_string())
-                                .collect::<Vec<_>>()
-                                .join("|")
-                        )),
-                        None => println!("Nothing"),
-                    };
-
-                    match feedback.dislike {
-                        Some(keywords) => url.push_str(&format!(
-                            "&without_keywords={}",
-                            keywords
-                                .iter()
-                                .map(|k| k.to_string())
-                                .collect::<Vec<_>>()
-                                .join("|")
-                        )),
-                        None => println!("Nothing"),
-                    };
+            if let Some(mut feedback) = feedback.take() {
+                if let Some(likes) = feedback.like.take() {
+                    url.push_str(&format!(
+                        "&with_keywords={}",
+                        likes
+                            .iter()
+                            .map(|k| k.to_string())
+                            .collect::<Vec<_>>()
+                            .join("|")
+                    ));
                 }
-                None => {}
+                if let Some(dislikes) = feedback.dislike.take(){
+                    url.push_str(&format!(
+                        "&without_keywords={}",
+                        dislikes
+                            .iter()
+                            .map(|k| k.to_string())
+                            .collect::<Vec<_>>()
+                            .join("|")
+                    ));
+                }
             }
 
             println!("{}", &url);
@@ -550,7 +544,3 @@ cfg_if! {
     }
     }
 }
-
-/* ======================================================================================================================== */
-/* ====================================================== UNIT TESTS ====================================================== */
-/* ======================================================================================================================== */
