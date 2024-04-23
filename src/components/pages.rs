@@ -26,9 +26,15 @@ pub fn HomePage() -> impl IntoView {
     view! {
         <div
             style:position="absolute"
-            style:left="45%"
-            style:top="30%"
-            style:transform="translate(-20%, -25%)"
+            style:left="25%"
+            style:transform="translate(0%, 10%)">
+        <h2>"Welcome to Moodie! Click the button below to get started"</h2>
+        </div>
+        <div
+            style:position="absolute"
+            style:left="47%"
+            style:top="40%"
+            style:transform="translate(0%, 10%)"
         >
             {move || {
                 {
@@ -76,7 +82,9 @@ pub fn ProviderPage() -> impl IntoView {
             .with(|params| params.get("session_id").cloned())
             .expect("Oh noooo")
     };
-    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
+
+    let select_data_signal = SelectedData::new(true);
+    provide_context(select_data_signal);
 
     let mut global_state = expect_context::<GlobalState>();
     view! {
@@ -88,10 +96,8 @@ pub fn ProviderPage() -> impl IntoView {
         >
             <GridPage
                 resource=watch_providers
-                selected_data=selected_data
-                set_selected_data=set_select_data
             />
-            {move || if !global_state.data_loading.get() {
+            {move || if !global_state.data_loading.get() && !select_data_signal.data_signal.get().is_empty() {
                 view! {
                     <A
                         href=format!("/runtime/{}", session_id())
@@ -101,7 +107,7 @@ pub fn ProviderPage() -> impl IntoView {
                             post_providers
                                 .dispatch(PostProviders {
                                     session_id: session_id(),
-                                    providers: selected_data.get(),
+                                    providers: select_data_signal.data_signal.get(),
                                 });
                         }
                     >
@@ -307,9 +313,12 @@ pub fn GenrePage() -> impl IntoView {
             .with(|params| params.get("session_id").cloned())
             .expect("Oh noooo")
     };
-    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     let mut global_state = expect_context::<GlobalState>();
     // <GridPage resource=genres />
+
+    let select_data_signal = SelectedData::new(true);
+    provide_context(select_data_signal);
+
     view! {
         <div
             style:position="absolute"
@@ -317,13 +326,10 @@ pub fn GenrePage() -> impl IntoView {
             style:top="30%"
             style:transform="translate(-20%, -25%)"
         >
-            <h1>{session_id}</h1>
             <GridPage
                 resource=genres
-                selected_data=selected_data
-                set_selected_data=set_select_data
             />
-            {move || if !global_state.data_loading.get(){
+            {move || if !global_state.data_loading.get() && !select_data_signal.data_signal.get().is_empty(){
                 view! {
                     <A
                         href=format!("/recommend/{}", session_id())
@@ -333,7 +339,7 @@ pub fn GenrePage() -> impl IntoView {
                             post_genres
                                 .dispatch(PostGenres {
                                     session_id: session_id(),
-                                    genres: selected_data.get(),
+                                    genres: select_data_signal.data_signal.get(),
                                 });
                         }
                     >
@@ -358,15 +364,22 @@ pub fn RecommendationPage() -> impl IntoView {
             .with(|params| params.get("session_id").cloned())
             .expect("Oh noooo")
     };
-    let (selected_data, set_select_data) = create_signal(Vec::<i32>::new());
     let global_state = expect_context::<GlobalState>();
+
+    let (reload_page, set_reload_page) = create_signal(false);
+
+    let post_feedback = create_server_action::<PostFeedback>();
+    let pending = post_feedback.pending();
+
+    let select_data_signal = SelectedData::new(false);
+    provide_context(select_data_signal);
     view! {
-        <div
-            style:position="absolute"
-            style:left="30%"
-            style:top="30%"
-            style:transform="translate(-20%, -25%)"
-        >
+            <div
+                style:position="absolute"
+                style:left="7%"
+                style:right="5%"
+                style:transform="translate(0%, 5%)"
+            >
             {move || if global_state.data_loading.get() {
                 view!{
                 <div class="loader" />
@@ -378,11 +391,48 @@ pub fn RecommendationPage() -> impl IntoView {
                     );
                     view! {<GridPage
                         resource=recommendations
-                        selected_data=selected_data
-                        set_selected_data=set_select_data
                     />
+                    {move || if !recommendations.loading().get(){
+                        if reload_page.get() && !pending() {
+                            set_reload_page(false);
+                            recommendations.refetch();
+                        }
+                        view! {
+                            <button class="btn btn-success" on:click={move |_| {
+                                match recommendations.get() {
+                                    Some(data) => {match data {
+                                        Ok(reccs) => {
+                                            let mut like = Vec::<i64>::new();
+                                            let mut dislike = Vec::<i64>::new();
+
+                                            for rec in reccs{
+                                                if rec.liked.get() {
+                                                    like.push(rec.movie.id.clone());
+
+                                                }
+                                                if rec.disliked.get() {
+                                                    dislike.push(rec.movie.id.clone());
+                                                }
+                                            }
+                                            let feedback=Feedback{like: Some(like), dislike: Some(dislike)};
+                                            post_feedback.dispatch(PostFeedback{
+                                                session_id: session_id(),
+                                                feedback
+                                            });
+                                            set_reload_page(true);
+                                        },
+                                        Err(err) => println!("Error: {}", err)
+                                    }},
+                                    None => {}
+                                }
+                            }}>"Refresh Recommendations"</button>}
+                            .into_view()
+                    }else{
+                        view! {}.into_view()
+                    }}
+
                 }.into_view()
             }}
-        </div>
+            </div>
     }
 }

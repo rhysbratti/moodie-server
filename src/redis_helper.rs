@@ -57,6 +57,28 @@ cfg_if! {
         }
     }
 
+    #[cfg(feature= "ssr")]
+    pub async fn clear_session_feedback(session_id: &String) -> Result<(), redis::RedisError> {
+        println!("Clearing feedback data for {}", &session_id);
+        match get_connection() {
+            Ok(con) => {
+                let existing_criteria = criteria_from_cache(&session_id).await;
+                match existing_criteria {
+                    Ok(mut criteria) => {
+                        criteria.feedback = None;
+                        let response = criteria_to_cache(&session_id, criteria).await;
+                        match response {
+                            Ok(_) => Ok(()),
+                            Err(err) => Err(err)
+                        }
+                    },
+                    Err(err) => Err(err)
+                }
+            },
+            Err(err) => Err(err)
+        }
+    }
+
     #[cfg(feature = "ssr")]
     pub async fn start_recommendation_session() -> Result<String, redis::RedisError> {
         match get_connection() {

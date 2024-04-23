@@ -7,6 +7,9 @@ use leptos_meta::*;
 use leptos_router::*;
 
 #[cfg(feature = "ssr")]
+use leptos_actix::ResponseOptions;
+
+#[cfg(feature = "ssr")]
 use lazy_static::lazy_static;
 
 #[cfg(feature = "ssr")]
@@ -247,6 +250,8 @@ fn update_feedback(
 pub async fn post_feedback(session_id: String, feedback: Feedback) -> Result<(), ServerFnError> {
     let tmdb = Arc::clone(&TMDB);
 
+    println!("{:#?}", feedback);
+
     match redis_helper::criteria_from_cache(&session_id).await {
         Err(err) => Err(ServerFnError::new(format!(
             "Error reading criteria from cache: {}",
@@ -302,6 +307,18 @@ pub async fn fetch_recommendations(
     session_id: String,
 ) -> Result<Vec<MovieRecommendation>, ServerFnError> {
     let tmdb = Arc::clone(&TMDB);
+    let supported_providers = vec![
+        "Netflix",
+        "Hulu",
+        "Apple TV",
+        "Peacock",
+        "Amazon Prime Video",
+        "Max",
+        "Disney Plus",
+        "Tubi",
+        "Crunchyroll",
+        "Paramount Plus",
+    ];
 
     match tmdb_helper::get_recommendations_for_session(tmdb, session_id).await {
         Err(err) => Err(ServerFnError::new(format!(
@@ -318,11 +335,12 @@ pub async fn fetch_recommendations(
                     .expect(format!("Error fetching watch providers for {}", rec.movie.id).as_str())
                     .results
                     .us
-                    .flatrate;
-                movie_recommendations.push(MovieRecommendation {
-                    movie: rec.movie,
-                    providers,
-                })
+                    .flatrate
+                    // Filter out unsupported providers (Things like Amazon Prime or Apple TV channels - these can introduce a lot of junk)
+                    .into_iter()
+                    .filter(|p| supported_providers.contains(&p.provider_name.as_str()))
+                    .collect();
+                movie_recommendations.push(MovieRecommendation::new(rec.movie, providers))
             }
 
             Ok(movie_recommendations)
@@ -345,6 +363,29 @@ pub async fn fetch_genres() -> Result<Vec<Genre>, ServerFnError> {
     }
 }
 
+#[cfg(feature = "ssr")]
+async fn create_session_cookie(response: ResponseOptions) -> Result<String, ServerFnError> {
+    use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
+    match redis_helper::start_recommendation_session().await {
+        Err(err) => Err(ServerFnError::new(format!(
+            "Error creating session ID: {}",
+            err
+        ))),
+        Ok(session_id) => {
+            println!("Session: {}", &session_id);
+            response.append_header(
+                header::SET_COOKIE,
+                HeaderValue::from_str(&format!(
+                    "SESSION_ID={session_id};\
+                         Path=/"
+                ))
+                .expect("to create header value"),
+            );
+            Ok(session_id)
+        }
+    }
+}
+
 #[server(StartSession, "/api")]
 pub async fn start_session() -> Result<String, ServerFnError> {
     use actix_web::{cookie::Cookie, http::header, http::header::HeaderValue};
@@ -357,24 +398,21 @@ pub async fn start_session() -> Result<String, ServerFnError> {
     let existing_cookie = get_session().await;
 
     match existing_cookie {
-        Ok(existing_session_id) => Ok(existing_session_id),
-        Err(_) => match redis_helper::start_recommendation_session().await {
-            Err(err) => Err(ServerFnError::new(format!(
-                "Error creating session ID: {}",
-                err
-            ))),
-            Ok(session_id) => {
-                println!("Session: {}", &session_id);
-                response.append_header(
-                    header::SET_COOKIE,
-                    HeaderValue::from_str(&format!(
-                        "SESSION_ID={session_id};\
-                             Path=/"
-                    ))
-                    .expect("to create header value"),
-                );
-                Ok(session_id)
+        Ok(existing_session_id) => {
+            match redis_helper::clear_session_feedback(&existing_session_id).await {
+                Ok(_) => Ok(existing_session_id),
+                Err(_) => {
+                    println!("Error clearing session_data. Creating new cookie");
+                    match create_session_cookie(response).await {
+                        Err(err) => Err(err),
+                        Ok(session_id) => Ok(session_id),
+                    }
+                }
             }
+        }
+        Err(_) => match create_session_cookie(response).await {
+            Err(err) => Err(err),
+            Ok(session_id) => Ok(session_id),
         },
     }
 }

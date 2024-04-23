@@ -27,6 +27,22 @@ impl GlobalState {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct SelectedData {
+    pub data_signal: RwSignal<Vec<i32>>,
+    pub add_data: bool,
+}
+
+impl SelectedData {
+    pub fn new(add_data: bool) -> Self {
+        let data_signal = create_rw_signal(Vec::<i32>::new());
+        Self {
+            data_signal,
+            add_data,
+        }
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
@@ -74,8 +90,6 @@ pub fn App() -> impl IntoView {
 #[component]
 pub fn GridPage<T: CardData + Clone + 'static>(
     resource: Resource<(), Result<Vec<T>, ServerFnError>>,
-    selected_data: ReadSignal<Vec<i32>>,
-    set_selected_data: WriteSignal<Vec<i32>>,
 ) -> impl IntoView {
     let loading = resource.loading();
     view! {
@@ -104,8 +118,6 @@ pub fn GridPage<T: CardData + Clone + 'static>(
                                 <Grid>
                                     <Card
                                         card_data=data.expect("whoopsie")
-                                        selected_data=selected_data
-                                        set_select_data=set_selected_data
                                     />
                                 </Grid>
                             }
@@ -175,15 +187,12 @@ fn LoadingCards() -> impl IntoView {
 }
 
 #[component]
-fn Card<T: CardData + Clone + 'static>(
-    #[prop(into)] card_data: Vec<T>,
-    selected_data: ReadSignal<Vec<i32>>,
-    set_select_data: WriteSignal<Vec<i32>>,
-) -> impl IntoView {
+fn Card<T: CardData + Clone + 'static>(#[prop(into)] card_data: Vec<T>) -> impl IntoView {
+    let selected_data_signal = expect_context::<SelectedData>();
     view! {
         {card_data
             .into_iter()
-            .map(|data| {
+            .map(|mut data| {
                 view! {
                     <div
                         key=data.get_id()
@@ -191,10 +200,12 @@ fn Card<T: CardData + Clone + 'static>(
                         on:click={
                             let selected_id = data.get_id();
                             move |_| {
-                                set_select_data
-                                    .update(|selected_data| {
-                                        selected_data.add_or_remove(selected_id)
-                                    });
+                                if selected_data_signal.add_data {
+                                    selected_data_signal.data_signal
+                                        .update(|selected_data| {
+                                            selected_data.add_or_remove(selected_id)
+                                        });
+                                }
                             }
                         }
                     >
@@ -205,7 +216,7 @@ fn Card<T: CardData + Clone + 'static>(
                                 "text-bg-secondary",
                                 {
                                     let current_id = data.get_id();
-                                    move || selected_data().contains(&current_id)
+                                    move || selected_data_signal.data_signal.get().contains(&current_id)
                                 },
                             )
 
@@ -224,15 +235,9 @@ fn Card<T: CardData + Clone + 'static>(
                             <div class="card-header" style:height="auto">
                                 <h5 class="card-title">{data.get_display()}</h5>
                             </div>
-                            {move || {
-                                if data.has_body() {
-                                    view! { <div class="card-body">{data.get_body()}</div> }
-                                        .into_view()
-                                } else {
-                                    view! {}.into_view()
-                                }
-                            }}
 
+                            {data.get_body()}
+                            {data.get_footer()}
                         </div>
                     </div>
                 }

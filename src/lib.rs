@@ -12,7 +12,7 @@ pub use server_functions::*;
 pub mod tmdb;
 #[cfg(feature = "ssr")]
 pub mod tmdb_helper;
-use leptos::*;
+use leptos::{svg::view, *};
 use serde::{Deserialize, Serialize};
 use std::{thread, time::Duration};
 
@@ -288,6 +288,32 @@ pub struct GetRecommendationsResponse {
 pub struct MovieRecommendation {
     pub movie: Movie,
     pub providers: Vec<WatchProvider>,
+    pub liked: RwSignal<bool>,
+    pub disliked: RwSignal<bool>,
+}
+
+impl MovieRecommendation {
+    pub fn new(movie: Movie, providers: Vec<WatchProvider>) -> Self {
+        let liked = create_rw_signal(false);
+        let disliked = create_rw_signal(false);
+
+        Self {
+            movie,
+            providers,
+            liked,
+            disliked,
+        }
+    }
+
+    pub fn set_liked(&mut self) {
+        self.liked.set(true);
+        self.disliked.set(false);
+    }
+
+    pub fn set_disliked(&mut self) {
+        self.liked.set(false);
+        self.disliked.set(true);
+    }
 }
 
 impl CardData for Genre {
@@ -307,8 +333,8 @@ impl CardData for Genre {
         String::from("")
     }
 
-    fn has_body(&self) -> bool {
-        false
+    fn get_footer(&mut self) -> impl IntoView {
+        view! {}
     }
 }
 
@@ -323,6 +349,7 @@ impl CardData for MovieRecommendation {
 
     fn get_body(&self) -> impl IntoView {
         view! {
+            <div class="card-body">
             {self
                 .providers
                 .clone()
@@ -334,12 +361,53 @@ impl CardData for MovieRecommendation {
                         </span>
                     }
                 })
-                .collect_view()}
+                .collect_view()
+            }
+            </div>
         }
     }
 
-    fn has_body(&self) -> bool {
-        true
+    fn get_footer(&mut self) -> impl IntoView {
+        println!("Getting footer...");
+        let liked_rw_signal = self.liked;
+        let disliked_rw_signal = self.disliked;
+        view! {
+            <div class="card-footer">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item list-group-item-dark">
+                        <button on:click={move |_| {
+                            if liked_rw_signal.get() {
+                                liked_rw_signal.set(false);
+                            }else{
+                                liked_rw_signal.set(true)
+                            }
+                            disliked_rw_signal.set(false);
+                        }} class={ move ||
+                            if liked_rw_signal.get() == true{
+                                "btn btn-success"
+                            }else {
+                                "btn btn-outline-success"
+                            }
+                        }>"Like"</button>
+                        <button on:click={move |_| {
+                            if disliked_rw_signal.get(){
+                                disliked_rw_signal.set(false);
+                            }else{
+                                disliked_rw_signal.set(true)
+                            }
+
+                            liked_rw_signal.set(false);
+                        }} class={ move ||
+                            if disliked_rw_signal.get() == true{
+                                "btn btn-danger"
+                            }else {
+                                "btn btn-outline-danger"
+                            }
+                        }>"Dislike"</button>
+                    </li>
+                </ul>
+            </div>
+        }
     }
 
     fn get_logo_path(&self) -> String {
@@ -355,7 +423,7 @@ pub trait CardData {
     fn get_display(&self) -> String;
     fn get_body(&self) -> impl IntoView;
     fn get_logo_path(&self) -> String;
-    fn has_body(&self) -> bool;
+    fn get_footer(&mut self) -> impl IntoView;
 }
 
 impl CardData for WatchProvider {
@@ -377,8 +445,8 @@ impl CardData for WatchProvider {
         )
     }
 
-    fn has_body(&self) -> bool {
-        false
+    fn get_footer(&mut self) -> impl IntoView {
+        view! {}
     }
 }
 
@@ -414,12 +482,12 @@ impl CardData for Decade {
         view! {}
     }
 
-    fn has_body(&self) -> bool {
-        false
-    }
-
     fn get_logo_path(&self) -> String {
         String::from("")
+    }
+
+    fn get_footer(&mut self) -> impl IntoView {
+        view! {}
     }
 }
 
